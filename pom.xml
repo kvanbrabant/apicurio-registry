@@ -134,7 +134,7 @@
         <module>schema-util/xml</module>
         <module>schema-util/xsd</module>
         <module>schema-util/util-provider</module>
-
+        <module>schema-util/bigquery</module>
         <module>operator</module>
     </modules>
 
@@ -486,6 +486,11 @@
             <dependency>
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-schema-util-avro</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-schema-util-bigquery</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -1216,6 +1221,11 @@
                 </property>
             </activation>
             <repositories>
+                <repository>
+                    <id>mvnrepository</id>
+                    <name>mvnrepository</name>
+                    <url>https://mvnrepository.com/artifact/</url>
+                </repository>
                 <repository>
                     <id>confluent</id>
                     <name>Confluent</name>
