@@ -5,11 +5,12 @@ import io.apicurio.registry.content.canon.JsonContentCanonicalizer;
 import io.apicurio.registry.content.dereference.ContentDereferencer;
 import io.apicurio.registry.content.extract.ContentExtractor;
 import io.apicurio.registry.content.extract.NoopContentExtractor;
+import io.apicurio.registry.content.refs.NoOpReferenceFinder;
+import io.apicurio.registry.content.refs.ReferenceFinder;
 import io.apicurio.registry.rules.compatibility.BigqueryCompatibilityChecker;
 import io.apicurio.registry.rules.compatibility.CompatibilityChecker;
 import io.apicurio.registry.rules.validity.BigqueryContentValidator;
 import io.apicurio.registry.rules.validity.ContentValidator;
-import io.apicurio.registry.types.ArtifactType;
 
 public class BigQueryArtifactTypeUtilProvider extends AbstractArtifactTypeUtilProvider {
     @Override
@@ -34,12 +35,21 @@ public class BigQueryArtifactTypeUtilProvider extends AbstractArtifactTypeUtilPr
     }
 
     @Override
-    public ArtifactType getArtifactType() {
-        return ArtifactType.BIGQUERY;
+    public String getArtifactType() {
+        return "BIGQUERY";
     }
 
     @Override
     public ContentDereferencer getContentDereferencer() {
         return null;
+    }
+
+    /**
+     * A bigquery schema does not contain references.
+     * @return a NoOpReferenceFinder
+     */
+    @Override
+    public ReferenceFinder getReferenceFinder() {
+        return NoOpReferenceFinder.INSTANCE;
     }
 }

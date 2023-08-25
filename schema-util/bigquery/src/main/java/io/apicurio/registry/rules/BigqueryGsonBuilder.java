@@ -27,7 +27,7 @@ public class BigqueryGsonBuilder {
                 });
     }
 
-    protected FieldList parseFields(String content) {
+    public FieldList parseFields(String content) {
         return FieldList.of(gsonBuilder.create().fromJson(content, Field[].class));
     }
 
@@ -51,7 +51,7 @@ public class BigqueryGsonBuilder {
         }
 
         @Override
-        public FieldList read(JsonReader jsonReader) throws IOException {
+        public FieldList read(JsonReader jsonReader) {
             Gson gson = gsonBuilder.create();
             Field[] fields = gson.fromJson(jsonReader, Field[].class);
             return FieldList.of(fields);

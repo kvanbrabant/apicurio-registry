@@ -5,57 +5,30 @@ import io.apicurio.registry.rules.BigqueryGsonBuilder;
 
 import java.util.*;
 
-public class BigqueryCompatibilityChecker extends BigqueryGsonBuilder implements CompatibilityChecker {
-    @Override
-    public CompatibilityExecutionResult testCompatibility(CompatibilityLevel compatibilityLevel, List<ContentHandle> existingArtifacts, ContentHandle proposedArtifact) {
-        // existingArtifacts is implemented as a LazyContentList, which does not support the spliterator interface.
-        // This means we cannot call stream() on it in java version 11 (does work in version 17)
-        final List<String> existingArtifactsContent = new ArrayList<>();
-        existingArtifacts.forEach(ch -> existingArtifactsContent.add(ch.content()));
-        return testCompatibility(compatibilityLevel, existingArtifactsContent,
-                proposedArtifact.content());
+public class BigqueryCompatibilityChecker extends AbstractCompatibilityChecker<CompatibilityDifference> {
+
+    private final static BigqueryGsonBuilder bigqueryGsonBuilder;
+
+    static {
+        bigqueryGsonBuilder = new BigqueryGsonBuilder();
     }
 
     @Override
-    public CompatibilityExecutionResult testCompatibility(CompatibilityLevel compatibilityLevel, List<String> existingArtifacts, String proposedArtifact) {
-        if (compatibilityLevel.equals(CompatibilityLevel.NONE) || existingArtifacts.isEmpty()) {
-            return CompatibilityExecutionResult.compatible();
-        }
-        ComparableSchema proposedSchema = toSchema(proposedArtifact);
+    protected Set<CompatibilityDifference> isBackwardsCompatibleWith(String existing, String proposedArtifact,
+                                                                                   Map<String, ContentHandle> resolvedReferences) {
+        ComparableSchema proposed = toSchema(proposedArtifact);
         Set<CompatibilityDifference> differences = new HashSet<>();
-        switch (compatibilityLevel) {
-            case FORWARD: {
-                toSchema(existingArtifacts.get(0)).checkCompatibilityWith(proposedSchema, differences);
-                break;
-            }
-            case BACKWARD: {
-                proposedSchema.checkCompatibilityWith(toSchema(existingArtifacts.get(0)), differences);
-                break;
-            }
-            case FULL: {
-                toSchema(existingArtifacts.get(0)).checkCompatibilityWith(proposedSchema, differences);
-                proposedSchema.checkCompatibilityWith(toSchema(existingArtifacts.get(0)), differences);
-                break;
-            }
-            case FORWARD_TRANSITIVE: {
-                existingArtifacts.forEach(content -> toSchema(content).checkCompatibilityWith(proposedSchema, differences));
-                break;
-            }
-            case BACKWARD_TRANSITIVE: {
-                existingArtifacts.forEach(content -> proposedSchema.checkCompatibilityWith(toSchema(content), differences));
-                break;
-            }
-            case FULL_TRANSITIVE: {
-                existingArtifacts.forEach(content -> {
-                    toSchema(content).checkCompatibilityWith(proposedSchema, differences);
-                    proposedSchema.checkCompatibilityWith(toSchema(content), differences);
-                });
-            }
-        }
-        return CompatibilityExecutionResult.incompatible(differences);
+        proposed.checkCompatibilityWith(toSchema(existing), differences);
+        return differences;
+    }
+
+    @Override
+    protected CompatibilityDifference transform(CompatibilityDifference original) {
+        return original;
     }
 
     private ComparableSchema toSchema(String content) {
-        return new ComparableSchema(parseFields(content));
+        return new ComparableSchema(bigqueryGsonBuilder.parseFields(content));
     }
+
 }

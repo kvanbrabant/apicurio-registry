@@ -1,10 +1,12 @@
 package io.apicurio.registry.rules.validity;
 
 import io.apicurio.registry.content.ContentHandle;
+import io.apicurio.registry.rest.v2.beans.ArtifactReference;
 import io.apicurio.registry.rules.BigqueryGsonBuilder;
 import io.apicurio.registry.rules.RuleViolationException;
 import io.apicurio.registry.types.RuleType;
 
+import java.util.List;
 import java.util.Map;
 
 public class BigqueryContentValidator extends BigqueryGsonBuilder implements ContentValidator {
@@ -20,4 +22,8 @@ public class BigqueryContentValidator extends BigqueryGsonBuilder implements Con
         }
     }
 
+    @Override
+    public void validateReferences(ContentHandle artifactContent, List<ArtifactReference> references) throws RuleViolationException {
+
+    }
 }

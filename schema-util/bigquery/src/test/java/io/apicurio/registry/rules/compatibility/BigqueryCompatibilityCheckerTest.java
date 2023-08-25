@@ -19,7 +19,7 @@ class BigqueryCompatibilityCheckerTest {
                 InputStream existing = getClass().getClassLoader().getResourceAsStream("validschema.json")) {
             CompatibilityExecutionResult compatibilityExecutionResult = bigqueryCompatibilityChecker
                     .testCompatibility(CompatibilityLevel.NONE,
-                    List.of(ContentHandle.create(existing)), ContentHandle.create(proposed));
+                    List.of(ContentHandle.create(existing)), ContentHandle.create(proposed), null);
             assertTrue(compatibilityExecutionResult.isCompatible());
         }
 
@@ -31,7 +31,7 @@ class BigqueryCompatibilityCheckerTest {
                 InputStream existing = getClass().getClassLoader().getResourceAsStream("validschema.json")) {
             CompatibilityExecutionResult compatibilityExecutionResult = bigqueryCompatibilityChecker
                     .testCompatibility(CompatibilityLevel.BACKWARD,
-                    List.of(ContentHandle.create(existing)), ContentHandle.create(proposed));
+                    List.of(ContentHandle.create(existing)), ContentHandle.create(proposed), null);
             assertTrue(compatibilityExecutionResult.isCompatible());
         }
     }
@@ -41,7 +41,7 @@ class BigqueryCompatibilityCheckerTest {
         try (InputStream proposed = getClass().getClassLoader().getResourceAsStream("extendedschema.json")) {
             CompatibilityExecutionResult compatibilityExecutionResult = bigqueryCompatibilityChecker
                     .testCompatibility(CompatibilityLevel.BACKWARD,
-                            Collections.emptyList(), ContentHandle.create(proposed));
+                            Collections.emptyList(), ContentHandle.create(proposed), null);
             assertTrue(compatibilityExecutionResult.isCompatible());
         }
     }
@@ -52,7 +52,7 @@ class BigqueryCompatibilityCheckerTest {
                 InputStream existing = getClass().getClassLoader().getResourceAsStream("validschema.json")) {
             CompatibilityExecutionResult compatibilityExecutionResult = bigqueryCompatibilityChecker
                     .testCompatibility(CompatibilityLevel.BACKWARD,
-                    List.of(ContentHandle.create(existing)), ContentHandle.create(proposed));
+                    List.of(ContentHandle.create(existing)), ContentHandle.create(proposed), null);
             assertFalse(compatibilityExecutionResult.isCompatible());
             assertTrue(compatibilityExecutionResult.getIncompatibleDifferences().iterator().next()
                     .asRuleViolation().getDescription().contains("does not match name"));
@@ -65,7 +65,7 @@ class BigqueryCompatibilityCheckerTest {
              InputStream existing = getClass().getClassLoader().getResourceAsStream("validschema.json")) {
             CompatibilityExecutionResult compatibilityExecutionResult = bigqueryCompatibilityChecker
                     .testCompatibility(CompatibilityLevel.FORWARD,
-                            List.of(ContentHandle.create(existing)), ContentHandle.create(proposed));
+                            List.of(ContentHandle.create(existing)), ContentHandle.create(proposed), null);
             assertTrue(compatibilityExecutionResult.isCompatible());
         }
     }
@@ -76,7 +76,7 @@ class BigqueryCompatibilityCheckerTest {
              InputStream existing = getClass().getClassLoader().getResourceAsStream("validschema.json")) {
             CompatibilityExecutionResult compatibilityExecutionResult = bigqueryCompatibilityChecker
                     .testCompatibility(CompatibilityLevel.FORWARD,
-                            List.of(ContentHandle.create(existing)), ContentHandle.create(proposed));
+                            List.of(ContentHandle.create(existing)), ContentHandle.create(proposed), null);
             assertFalse(compatibilityExecutionResult.isCompatible());
             assertEquals("Not compatible with a schema which has more elements.",
                     compatibilityExecutionResult.getIncompatibleDifferences().iterator().next()
@@ -90,7 +90,7 @@ class BigqueryCompatibilityCheckerTest {
              InputStream existing = getClass().getClassLoader().getResourceAsStream("validschema.json")) {
             CompatibilityExecutionResult compatibilityExecutionResult = bigqueryCompatibilityChecker
                     .testCompatibility(CompatibilityLevel.FORWARD,
-                            List.of(ContentHandle.create(existing)), ContentHandle.create(proposed));
+                            List.of(ContentHandle.create(existing)), ContentHandle.create(proposed), null);
             assertFalse(compatibilityExecutionResult.isCompatible());
             assertEquals("Type STRING of field numberOfYears does not match type INTEGER in other schema.",
                     compatibilityExecutionResult.getIncompatibleDifferences().iterator().next()
