@@ -14,16 +14,20 @@ public class BigqueryContentValidator extends BigqueryGsonBuilder implements Con
     @Override
     public void validate(ValidityLevel level, ContentHandle artifactContent, Map<String, ContentHandle> resolvedReferences)
             throws RuleViolationException {
-        try {
-            parseFields(artifactContent.content());
-        }
-        catch (Exception e) {
-            throw new RuleViolationException("invalid big query schema", RuleType.VALIDITY, null, e);
+        switch (level) {
+            case NONE: return;
+            case SYNTAX_ONLY: validateSyntax(artifactContent.content()); return;
+            default:
+                try {
+                    parseFields(artifactContent.content());
+                } catch (Exception e) {
+                    throw new RuleViolationException("invalid big query schema", RuleType.VALIDITY, null, e);
+                }
         }
     }
 
     @Override
     public void validateReferences(ContentHandle artifactContent, List<ArtifactReference> references) throws RuleViolationException {
-
+        // not used. There are no references.
     }
 }

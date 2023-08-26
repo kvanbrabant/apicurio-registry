@@ -1,0 +1,183 @@
+{
+    "testCases": [
+        {
+            "name": "case-1",
+            "passNone": true,
+            "passSyntax": true,
+            "passFull": true,
+            "skip": false,
+            "schemaJson": [
+                {
+                    "name": "id",
+                    "type": "STRING",
+                    "mode": "NULLABLE"
+                },
+                {
+                    "name": "first_name",
+                    "type": "STRING",
+                    "mode": "NULLABLE"
+                },
+                {
+                    "name": "last_name",
+                    "type": "STRING",
+                    "mode": "NULLABLE"
+                },
+                {
+                    "name": "dob",
+                    "type": "DATE",
+                    "mode": "NULLABLE"
+                },
+                {
+                    "name": "addresses",
+                    "type": "RECORD",
+                    "mode": "REPEATED",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        },
+                        {
+                            "name": "address",
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        },
+                        {
+                            "name": "city",
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        },
+                        {
+                            "name": "state",
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        },
+                        {
+                            "name": "zip",
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        },
+                        {
+                            "name": "numberOfYears",
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "case-2",
+            "$comment": "How do we define difference between syntax and full validation for bigquery? Maybe JSON should pass syntax?",
+            "passNone": true,
+            "passSyntax": true,
+            "passFull": false,
+            "skip": false,
+            "schemaJson": [
+                {
+                    "name": "id",
+                    "type": "STRING",
+                    "mode": "NULLABLE"
+                },
+                {
+                    "name": "first_name",
+                    "type": "HANDLE",
+                    "mode": "NULLABLE"
+                },
+                {
+                    "name": "last_name",
+                    "type": "STRING",
+                    "mode": "I"
+                },
+                {
+                    "name": "dob",
+                    "type": "DATE",
+                    "mode": "NULLABLE"
+                },
+                {
+                    "name": "addresses",
+                    "type": "RECORD",
+                    "mode": "REPEATED",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        },
+                        {
+                            "name": "address",
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        },
+                        {
+                            "name": "city",
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        },
+                        {
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        },
+                        {
+                            "name": "zip",
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        },
+                        {
+                            "name": "numberOfYears",
+                            "type": "STRING",
+                            "mode": "NULLABLE"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "case-3",
+            "$comment": "Not a schema. How do we define difference between syntax and full validation for bigquery? Maybe JSON should pass syntax?",
+            "passNone": true,
+            "passSyntax": true,
+            "passFull": false,
+            "skip": false,
+            "schemaJson": {
+                "type": "record",
+                "name": "userInfo",
+                "namespace": "my.example",
+                "fields": [
+                    {
+                        "name": "age",
+                        "type": "int"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "case-4",
+            "$comment": "Is the wrapping array required?",
+            "passNone": true,
+            "passSyntax": true,
+            "passFull": false,
+            "skip": false,
+            "schemaJson": [
+                {
+                    "name": "id",
+                    "type": "STRING",
+                    "mode": "NULLEABLE"
+                }
+            ]
+        },
+        {
+            "name": "case-5",
+            "$comment": "Is the wrapping array required?",
+            "passNone": true,
+            "passSyntax": true,
+            "passFull": false,
+            "skip": false,
+            "schemaJson": {
+                "name": "id",
+                "type": "STRING",
+                "mode": "NULLABLE"
+            }
+        }
+    ]
+}

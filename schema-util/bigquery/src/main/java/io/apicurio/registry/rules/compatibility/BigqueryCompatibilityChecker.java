@@ -1,5 +1,6 @@
 package io.apicurio.registry.rules.compatibility;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.apicurio.registry.content.ContentHandle;
 import io.apicurio.registry.rules.BigqueryGsonBuilder;
 
@@ -16,10 +17,17 @@ public class BigqueryCompatibilityChecker extends AbstractCompatibilityChecker<C
     @Override
     protected Set<CompatibilityDifference> isBackwardsCompatibleWith(String existing, String proposedArtifact,
                                                                                    Map<String, ContentHandle> resolvedReferences) {
-        ComparableSchema proposed = toSchema(proposedArtifact);
-        Set<CompatibilityDifference> differences = new HashSet<>();
-        proposed.checkCompatibilityWith(toSchema(existing), differences);
-        return differences;
+        try {
+            ComparableSchema proposed = toSchema(proposedArtifact);
+            Set<CompatibilityDifference> differences = new HashSet<>();
+            proposed.checkCompatibilityWith(toSchema(existing), differences);
+            return differences;
+        } catch (JsonProcessingException e) {
+            return Collections.singleton(
+                    new BigquerySchemaCompatibilityDifference(e.getMessage(), e.getLocation().toString())
+            );
+        }
+
     }
 
     @Override
@@ -27,7 +35,7 @@ public class BigqueryCompatibilityChecker extends AbstractCompatibilityChecker<C
         return original;
     }
 
-    private ComparableSchema toSchema(String content) {
+    private ComparableSchema toSchema(String content) throws JsonProcessingException {
         return new ComparableSchema(bigqueryGsonBuilder.parseFields(content));
     }
 
