@@ -17,15 +17,8 @@
 
 package io.apicurio.registry.storage;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-
 import io.apicurio.common.apps.config.DynamicConfigPropertyDto;
 import io.apicurio.common.apps.config.DynamicConfigStorage;
-import io.apicurio.common.apps.multitenancy.TenantContext;
 import io.apicurio.registry.content.ContentHandle;
 import io.apicurio.registry.storage.dto.ArtifactMetaDataDto;
 import io.apicurio.registry.storage.dto.ArtifactOwnerDto;
@@ -38,7 +31,6 @@ import io.apicurio.registry.storage.dto.DownloadContextDto;
 import io.apicurio.registry.storage.dto.EditableArtifactMetaDataDto;
 import io.apicurio.registry.storage.dto.GroupMetaDataDto;
 import io.apicurio.registry.storage.dto.GroupSearchResultsDto;
-import io.apicurio.registry.storage.dto.LogConfigurationDto;
 import io.apicurio.registry.storage.dto.OrderBy;
 import io.apicurio.registry.storage.dto.OrderDirection;
 import io.apicurio.registry.storage.dto.RoleMappingDto;
@@ -46,10 +38,17 @@ import io.apicurio.registry.storage.dto.RuleConfigurationDto;
 import io.apicurio.registry.storage.dto.SearchFilter;
 import io.apicurio.registry.storage.dto.StoredArtifactDto;
 import io.apicurio.registry.storage.dto.VersionSearchResultsDto;
+import io.apicurio.registry.storage.error.*;
 import io.apicurio.registry.storage.impexp.EntityInputStream;
+import io.apicurio.registry.storage.impl.sql.IdGenerator;
 import io.apicurio.registry.types.ArtifactState;
 import io.apicurio.registry.types.RuleType;
-import io.apicurio.registry.utils.impexp.Entity;
+import io.apicurio.registry.utils.impexp.*;
+import jakarta.transaction.Transactional;
+
+import java.time.Instant;
+import java.util.*;
+import java.util.function.Function;
 
 /**
  * The artifactStore layer for the registry.
@@ -63,14 +62,6 @@ public interface RegistryStorage extends DynamicConfigStorage {
      * The storage name
      */
     String storageName();
-
-    /**
-     * Returns true if the storage implementation supports multitenancy.
-     * If the storage supports multitenancy, it will get the tenant information from the {@link TenantContext}
-     *
-     * @return if multitenancy is supported
-     */
-    boolean supportsMultiTenancy();
 
     /**
      * Is the storage initialized and ready to be used?
@@ -91,6 +82,13 @@ public interface RegistryStorage extends DynamicConfigStorage {
      * @return true if yes, false if no
      */
     boolean isAlive();
+
+
+    boolean isReadOnly();
+
+
+    @Transactional
+    List<Long> getArtifactContentIds(String groupId, String artifactId);
 
     /**
      * Update artifact state.
@@ -223,7 +221,7 @@ public interface RegistryStorage extends DynamicConfigStorage {
      * @param artifactId
      * @return
      */
-    List<Long> getArtifactContentIds(String groupId, String artifactId);
+    List<Long> getEnabledArtifactContentIds(String groupId, String artifactId);
 
     /**
      * Updates the artifact value by storing the given value as a new version of the artifact.  Previous value
@@ -430,6 +428,17 @@ public interface RegistryStorage extends DynamicConfigStorage {
      */
     List<String> getArtifactVersions(String groupId, String artifactId) throws ArtifactNotFoundException, RegistryStorageException;
 
+
+    /**
+     * Gets a sorted set of all artifact versions that exist for a given artifact.
+     *
+     * @param groupId    (optional)
+     * @param artifactId
+     * @throws ArtifactNotFoundException
+     * @throws RegistryStorageException
+     */
+    List<String> getArtifactVersions(String groupId, String artifactId, ArtifactRetrievalBehavior behavior) throws ArtifactNotFoundException, RegistryStorageException;
+
     /**
      * Fetch the versions of the given artifact
      *
@@ -569,37 +578,6 @@ public interface RegistryStorage extends DynamicConfigStorage {
     void deleteGlobalRule(RuleType rule) throws RuleNotFoundException, RegistryStorageException;
 
     /**
-     * Returns the log configuration persisted in the storage for the given logger
-     *
-     * @param logger
-     * @throws RegistryStorageException
-     */
-    LogConfigurationDto getLogConfiguration(String logger) throws RegistryStorageException, LogConfigurationNotFoundException;
-
-    /**
-     * Persists the given log configuration
-     *
-     * @param logConfiguration
-     * @throws RegistryStorageException
-     */
-    void setLogConfiguration(LogConfigurationDto logConfiguration) throws RegistryStorageException;
-
-    /**
-     * Removes the persisted log configuration for the given logger
-     *
-     * @param logger
-     * @throws RegistryStorageException
-     */
-    void removeLogConfiguration(String logger) throws RegistryStorageException, LogConfigurationNotFoundException;
-
-    /**
-     * Returns the list of log configuration persisted in the storage
-     *
-     * @throws RegistryStorageException
-     */
-    List<LogConfigurationDto> listLogConfigurations() throws RegistryStorageException;
-
-    /**
      * Creates a new empty group and stores it's metadata. When creating an artifact the group is automatically created in it does not exist.
      *
      * @param group
@@ -729,7 +707,7 @@ public interface RegistryStorage extends DynamicConfigStorage {
     void deleteRoleMapping(String principalId) throws RegistryStorageException;
 
     /**
-     * Deletes ALL user (tenant) data. Does not delete global data, such as log configuration.
+     * Deletes ALL user data. Does not delete global data, such as log configuration.
      */
     void deleteAllUserData();
 
@@ -766,13 +744,13 @@ public interface RegistryStorage extends DynamicConfigStorage {
     DynamicConfigPropertyDto getRawConfigProperty(String propertyName);
 
     /**
-     * Gets a list of tenantIds with stale configuration properties.  This would inform a caching
-     * layer that a tenant-specific cache should be invalidated.
+     * Gets a list of properties with stale state.  This would inform a caching
+     * layer that the cache should be invalidated.
      *
      * @param since instant representing the last time this check was done (has anything changed since)
-     * @return a list of tenant IDs with stale configs
+     * @return a list of stale configs
      */
-    List<String> getTenantsWithStaleConfigProperties(Instant since);
+    List<DynamicConfigPropertyDto> getStaleConfigProperties(Instant since);
 
 
     /**
@@ -838,16 +816,10 @@ public interface RegistryStorage extends DynamicConfigStorage {
      */
     GroupSearchResultsDto searchGroups(Set<SearchFilter> filters, OrderBy orderBy, OrderDirection orderDirection, Integer offset, Integer limit);
 
-    enum ArtifactRetrievalBehavior {
-        DEFAULT,
-        /**
-         * Skip artifact versions with DISABLED state
-         */
-        SKIP_DISABLED_LATEST
-    }
 
     /**
      * Creates a new comment for an artifact version.
+     *
      * @param groupId
      * @param artifactId
      * @param version
@@ -857,6 +829,7 @@ public interface RegistryStorage extends DynamicConfigStorage {
 
     /**
      * Deletes a single comment for an artifact version.
+     *
      * @param groupId
      * @param artifactId
      * @param version
@@ -866,6 +839,7 @@ public interface RegistryStorage extends DynamicConfigStorage {
 
     /**
      * Returns all comments for the given artifact version.
+     *
      * @param groupId
      * @param artifactId
      * @param version
@@ -874,6 +848,7 @@ public interface RegistryStorage extends DynamicConfigStorage {
 
     /**
      * Updates a single comment.
+     *
      * @param groupId
      * @param artifactId
      * @param version
@@ -882,4 +857,85 @@ public interface RegistryStorage extends DynamicConfigStorage {
      */
     void updateArtifactVersionComment(String groupId, String artifactId, String version, String commentId, String value);
 
+
+    CommentDto createArtifactVersionCommentRaw(String groupId, String artifactId, String version, IdGenerator commentId,
+                                               String createdBy, Date createdOn, String value);
+
+
+    void resetGlobalId();
+
+
+    void resetContentId();
+
+
+    void resetCommentId();
+
+
+    long nextContentId();
+
+
+    long nextGlobalId();
+
+
+    long nextCommentId();
+
+
+    void importComment(CommentEntity entity);
+
+
+    void importGroup(GroupEntity entity);
+
+
+    void importGlobalRule(GlobalRuleEntity entity);
+
+
+    void importContent(ContentEntity entity);
+
+
+    void importArtifactVersion(ArtifactVersionEntity entity);
+
+
+    void importArtifactRule(ArtifactRuleEntity entity);
+
+
+    String normalizeVersion(String groupId, String artifactId, String version);
+
+
+    boolean isContentExists(String contentHash) throws RegistryStorageException;
+
+
+    boolean isArtifactRuleExists(String groupId, String artifactId, RuleType rule) throws RegistryStorageException;
+
+
+    boolean isGlobalRuleExists(RuleType rule) throws RegistryStorageException;
+
+
+    boolean isRoleMappingExists(String principalId);
+
+
+    void updateContentCanonicalHash(String newCanonicalHash, long contentId, String contentHash);
+
+
+    Optional<Long> contentIdFromHash(String contentHash);
+
+
+    ArtifactMetaDataDto updateArtifactWithMetadata(String groupId, String artifactId, String version,
+                                                   String artifactType, String contentHash, String createdBy, Date createdOn,
+                                                   EditableArtifactMetaDataDto metaData,
+                                                   IdGenerator globalIdGenerator);
+
+
+    ArtifactMetaDataDto createArtifactWithMetadata(String groupId, String artifactId, String version,
+                                                   String artifactType, String contentHash, String createdBy,
+                                                   Date createdOn, EditableArtifactMetaDataDto metaData, IdGenerator globalIdGenerator)
+            throws ArtifactNotFoundException, RegistryStorageException;
+
+
+    enum ArtifactRetrievalBehavior {
+        DEFAULT,
+        /**
+         * Skip artifact versions with DISABLED state
+         */
+        SKIP_DISABLED_LATEST
+    }
 }

@@ -51,7 +51,6 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import io.quarkus.test.junit.QuarkusTest;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -60,8 +59,9 @@ import org.json.JSONObject;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -93,9 +93,7 @@ public class AvroSerdeTest extends AbstractResourceTestBase {
         String groupId = TestUtils.generateGroupId();
         String topic = generateArtifactId();
 
-        final Integer globalId = createArtifact(groupId, topic + "-" + recordName, ArtifactType.AVRO, schema.toString());
-
-        this.waitForGlobalId(globalId);
+        /*final Integer globalId = */createArtifact(groupId, topic + "-" + recordName, ArtifactType.AVRO, schema.toString());
 
         Map<String, Object> config = new HashMap<>();
         config.put(SerdeConfig.REGISTRY_URL, TestUtils.getRegistryV2ApiUrl(testPort));
@@ -387,10 +385,7 @@ public class AvroSerdeTest extends AbstractResourceTestBase {
             byte[] bytes = serializer.serialize(artifactId, headers, record);
 
             Assertions.assertNotNull(headers.lastHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID));
-            Header globalId = headers.lastHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID);
-            long id = ByteBuffer.wrap(globalId.value()).getLong();
-
-            waitForGlobalId(id);
+            headers.lastHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID);
 
             GenericData.Record ir = deserializer.deserialize(artifactId, headers, bytes);
 
@@ -399,8 +394,16 @@ public class AvroSerdeTest extends AbstractResourceTestBase {
         }
     }
 
-    @Test
-    public void testAvroReflect() throws Exception {
+    @ParameterizedTest
+    @ValueSource(
+        classes = {
+            io.apicurio.registry.serde.strategy.TopicIdStrategy.class,
+            io.apicurio.registry.serde.avro.strategy.QualifiedRecordIdStrategy.class,
+            io.apicurio.registry.serde.avro.strategy.RecordIdStrategy.class,
+            io.apicurio.registry.serde.avro.strategy.TopicRecordIdStrategy.class
+        }
+    )
+    public void testAvroReflect(Class<?> artifactResolverStrategyClass) throws Exception {
         try (AvroKafkaSerializer<Tester> serializer = new AvroKafkaSerializer<Tester>(restClient);
              AvroKafkaDeserializer<Tester> deserializer = new AvroKafkaDeserializer<Tester>(restClient)) {
 
@@ -408,6 +411,7 @@ public class AvroSerdeTest extends AbstractResourceTestBase {
             config.put(SerdeConfig.AUTO_REGISTER_ARTIFACT, "true");
             config.put(SerdeConfig.ENABLE_HEADERS, "false");
             config.put(AvroKafkaSerdeConfig.AVRO_DATUM_PROVIDER, ReflectAvroDatumProvider.class.getName());
+            config.put(SchemaResolverConfig.ARTIFACT_RESOLVER_STRATEGY, artifactResolverStrategyClass.getName());
             serializer.configure(config, false);
 
             config = new HashMap<>();
@@ -416,7 +420,7 @@ public class AvroSerdeTest extends AbstractResourceTestBase {
 
             String artifactId = generateArtifactId();
 
-            Tester tester = new Tester("Apicurio");
+            Tester tester = new Tester("Apicurio", Tester.TesterState.ONLINE);
             byte[] bytes = serializer.serialize(artifactId, tester);
 
             waitForSchema(globalId -> restClient.getContentByGlobalId(globalId) != null, bytes);
@@ -429,7 +433,7 @@ public class AvroSerdeTest extends AbstractResourceTestBase {
     }
 
     private SchemaRegistryClient buildClient() {
-        return new CachedSchemaRegistryClient("http://localhost:" + testPort + "/apis/ccompat/v6", 3);
+        return new CachedSchemaRegistryClient("http://localhost:" + testPort + "/apis/ccompat/v7", 3);
     }
 
     @Test

@@ -6,6 +6,7 @@ MEM_DOCKERFILE ?= Dockerfile.jvm
 SQL_DOCKERFILE ?= Dockerfile.sql.jvm
 MSSQL_DOCKERFILE ?= Dockerfile.mssql.jvm
 KAFKASQL_DOCKERFILE ?= Dockerfile.kafkasql.jvm
+GITOPS_DOCKERFILE ?= Dockerfile.gitops.jvm
 DOCKER_BUILD_WORKSPACE ?= $(DOCKERFILE_LOCATION)
 
 # Special variable that sets the default target
@@ -57,7 +58,7 @@ build-all:
 	@echo "----------------------------------------------------------------------"
 	@echo "                   Building All Modules                               "
 	@echo "----------------------------------------------------------------------"
-	./mvnw -T 1.5C clean install --no-transfer-progress -Pprod -Psql -Pmssql -Pkafkasql -DskipTests=$(SKIP_TESTS) $(BUILD_FLAGS)
+	./mvnw -T 1.5C clean install --no-transfer-progress -Pprod -Psql -Pmssql -Pkafkasql -Pgitops -DskipTests=$(SKIP_TESTS) $(BUILD_FLAGS)
 
 .PHONY: build-in-memory ## Builds and test in-memory module. Variables available for override [SKIP_TESTS, BUILD_FLAGS]
 build-in-memory:
@@ -80,6 +81,13 @@ build-kafkasql:
 	@echo "----------------------------------------------------------------------"
 	./mvnw -T 1.5C clean install --no-transfer-progress -Pprod -Pkafkasql -Pno-slow-tests -DskipAppTests -DskipTests=$(SKIP_TESTS) $(BUILD_FLAGS)
 
+.PHONY: build-gitops ## Builds and test gitops module. Variables available for override [SKIP_TESTS, BUILD_FLAGS]
+build-gitops:
+	@echo "----------------------------------------------------------------------"
+	@echo "                   Building GitOps Module                           "
+	@echo "----------------------------------------------------------------------"
+	./mvnw -T 1.5C clean install --no-transfer-progress -Pprod -Pgitops -Pno-slow-tests -DskipAppTests -DskipTests=$(SKIP_TESTS) $(BUILD_FLAGS)
+
 .PHONY: build-mem-native ## Builds mem storage variant native executable. Variables available for override [SKIP_TESTS, BUILD_FLAGS]
 build-mem-native:
 	@echo "----------------------------------------------------------------------"
@@ -100,6 +108,13 @@ build-kafkasql-native:
 	@echo "             Building Kafkasql Storage Variant Natively               "
 	@echo "----------------------------------------------------------------------"
 	./mvnw -T 1.5C package --no-transfer-progress -Pnative -Dquarkus.native.container-build=true -Pprod -Pkafkasql -pl storage/kafkasql -DskipAppTests -DskipTests=$(SKIP_TESTS) $(BUILD_FLAGS)
+
+.PHONY: build-gitops-native ## Builds gitops storage variant native executable. Variables available for override [SKIP_TESTS, BUILD_FLAGS]
+build-gitops-native:
+	@echo "----------------------------------------------------------------------"
+	@echo "             Building GitOps Storage Variant Natively               "
+	@echo "----------------------------------------------------------------------"
+	./mvnw -T 1.5C package --no-transfer-progress -Pnative -Dquarkus.native.container-build=true -Pprod -Pgitops -pl storage/gitops -DskipAppTests -DskipTests=$(SKIP_TESTS) $(BUILD_FLAGS)
 
 
 
@@ -242,11 +257,48 @@ push-kafkasql-native-image:
 	@echo "------------------------------------------------------------------------"
 	docker push $(IMAGE_REPO)/$(IMAGE_GROUP)/apicurio-registry-kafkasql-native:$(IMAGE_TAG)
 
+.PHONY: build-gitops-image ## Builds docker image for gitops storage variant. Variables available for override [KAFKASQL_DOCKERFILE, IMAGE_REPO, IMAGE_TAG, DOCKER_BUILD_WORKSPACE]
+build-gitops-image:
+	@echo "------------------------------------------------------------------------"
+	@echo " Building Image For GitOps Storage Variant "
+	@echo " Repository: $(IMAGE_REPO)"
+	@echo " Tag: $(IMAGE_TAG)"
+	@echo "------------------------------------------------------------------------"
+	docker build -f $(DOCKERFILE_LOCATION)/$(GITOPS_DOCKERFILE) -t $(IMAGE_REPO)/apicurio/apicurio-registry-gitops:$(IMAGE_TAG) $(DOCKER_BUILD_WORKSPACE)
+
+.PHONY: push-gitops-image ## Pushes docker image for gitops storage variant. Variables available for override [IMAGE_REPO, IMAGE_TAG]
+push-gitops-image:
+	@echo "------------------------------------------------------------------------"
+	@echo " Pushing Image For GitOps Storage Variant"
+	@echo " Repository: $(IMAGE_REPO)"
+	@echo " Tag: $(IMAGE_TAG)"
+	@echo "------------------------------------------------------------------------"
+	docker push $(IMAGE_REPO)/apicurio/apicurio-registry-gitops:$(IMAGE_TAG)
+
+.PHONY: build-gitops-native-image ## Builds native docker image for gitops storage variant. Variables available for override [IMAGE_REPO, IMAGE_TAG]
+build-gitops-native-image:
+	@echo "------------------------------------------------------------------------"
+	@echo " Building Image For GitOps Storage Variant (using Native Executable)"
+	@echo " Repository: $(IMAGE_REPO)"
+	@echo " Tag: $(IMAGE_TAG)"
+	@echo "------------------------------------------------------------------------"
+	docker build -f $(DOCKERFILE_LOCATION)/Dockerfile.native -t $(IMAGE_REPO)/$(IMAGE_GROUP)/apicurio-registry-gitops-native:$(IMAGE_TAG) storage/gitops
+
+.PHONY: push-gitops-native-image ## Pushes native docker image for gitops storage variant. Variables available for override [IMAGE_REPO, IMAGE_TAG]
+push-gitops-native-image:
+	@echo "------------------------------------------------------------------------"
+	@echo " Pushing Image For GitOps Storage Variant (using Native Executable)"
+	@echo " Repository: $(IMAGE_REPO)"
+	@echo " Tag: $(IMAGE_TAG)"
+	@echo "------------------------------------------------------------------------"
+	docker push $(IMAGE_REPO)/$(IMAGE_GROUP)/apicurio-registry-gitops-native:$(IMAGE_TAG)
+
+
 .PHONY: build-all-images ## Builds all the Images. Variables available for override [IMAGE_REPO, IMAGE_TAG]
-build-all-images: build-mem-image build-sql-image build-mssql-image build-kafkasql-image
+build-all-images: build-mem-image build-sql-image build-mssql-image build-kafkasql-image build-gitops-image
 
 .PHONY: push-all-images ## Pushes all the Images. Variables available for override [IMAGE_REPO, IMAGE_TAG]
-push-all-images: push-mem-image push-sql-image push-mssql-image push-kafkasql-image
+push-all-images: push-mem-image push-sql-image push-mssql-image push-kafkasql-image push-gitops-image
 
 
 .PHONY: mem-multiarch-images ## Builds and pushes multi-arch images for 'in-memory' storage variant. Variables available for override [MEM_DOCKERFILE, IMAGE_REPO, IMAGE_TAG, DOCKER_BUILD_WORKSPACE]
@@ -289,6 +341,16 @@ kafkasql-multiarch-images:
 	@echo "------------------------------------------------------------------------"
 	docker buildx build --push -f $(DOCKERFILE_LOCATION)/$(KAFKASQL_DOCKERFILE) -t $(IMAGE_REPO)/$(IMAGE_GROUP)/apicurio-registry-kafkasql:$(IMAGE_TAG) --platform $(IMAGE_PLATFORMS) $(DOCKER_BUILD_WORKSPACE)
 
+.PHONY: gitops-multiarch-images ## Builds and pushes multi-arch images for gitops storage variant. Variables available for override [KAFKASQL_DOCKERFILE, IMAGE_REPO, IMAGE_TAG, DOCKER_BUILD_WORKSPACE]
+gitops-multiarch-images:
+	@echo "------------------------------------------------------------------------"
+	@echo " Building Multi-arch Images For GitOps Storage Variant "
+	@echo " Supported Platforms: $(IMAGE_PLATFORMS)"
+	@echo " Repository: $(IMAGE_REPO)"
+	@echo " Tag: $(IMAGE_TAG)"
+	@echo "------------------------------------------------------------------------"
+	docker buildx build --push -f $(DOCKERFILE_LOCATION)/$(GITOPS_DOCKERFILE) -t $(IMAGE_REPO)/$(IMAGE_GROUP)/apicurio-registry-gitops:$(IMAGE_TAG) --platform $(IMAGE_PLATFORMS) $(DOCKER_BUILD_WORKSPACE)
+
 .PHONY: mem-native-scratch-image ## Builds and pushes multi-arch images for mem storage variant based on scratch. Variables available for override [MEM_SCRATCH_DOCKERFILE, IMAGE_REPO, IMAGE_TAG, DOCKER_BUILD_WORKSPACE]
 mem-native-scratch-image:
 	@echo "------------------------------------------------------------------------"
@@ -300,24 +362,7 @@ mem-native-scratch-image:
 	docker buildx build --push -f $(DOCKERFILE_LOCATION)/$(MEM_SCRATCH_DOCKERFILE) -t $(IMAGE_REPO)/$(IMAGE_GROUP)/apicurio-registry-mem-native-scratch:$(IMAGE_TAG) --platform $(IMAGE_PLATFORMS) $(DOCKER_BUILD_WORKSPACE)
 
 .PHONY: multiarch-registry-images ## Builds and pushes multi-arch registry images for all variants. Variables available for override [IMAGE_REPO, IMAGE_TAG]
-multiarch-registry-images: mem-multiarch-images sql-multiarch-images mssql-multiarch-images kafkasql-multiarch-images mem-native-scratch-image
-
-
-.PHONY: pr-check ## Builds and runs basic tests for multitenant registry pipelines
-pr-check:
-	CURRENT_ENV=mas mvn clean install -Pno-docker -Dskip.npm -Pprod -Psql -am -pl storage/sql \
-		-Dmaven.javadoc.skip=true --no-transfer-progress -DtrimStackTrace=false
-	./scripts/clean-postgres.sh
-	CURRENT_ENV=mas NO_DOCKER=true mvn verify -Pintegration-tests -Psql -am -pl integration-tests \
-		-Dmaven.javadoc.skip=true --no-transfer-progress -DtrimStackTrace=false
-
-.PHONY: build-project ## Builds the components for multitenant registry pipelines
-build-project:
-# run unit tests for app module
-	CURRENT_ENV=mas mvn clean install -Pno-docker -Dskip.npm -Pprod -Psql -am -pl app -Dmaven.javadoc.skip=true --no-transfer-progress -DtrimStackTrace=false
-# build everything without running tests in order to be able to build container images
-	CURRENT_ENV=mas mvn clean install -Pprod -Pno-docker -Dskip.npm -Psql -Dmaven.javadoc.skip=true --no-transfer-progress -DtrimStackTrace=false -DskipTests
-
+multiarch-registry-images: mem-multiarch-images sql-multiarch-images mssql-multiarch-images kafkasql-multiarch-images mem-native-scratch-image gitops-multiarch-images
 
 .PHONY: run-ui-tests ## Runs ui e2e tests
 run-ui-tests:
@@ -358,13 +403,6 @@ run-sql-integration-tests:
 	@echo "----------------------------------------------------------------------"
 	./mvnw verify -am --no-transfer-progress -Pintegration-tests -P$(INTEGRATION_TESTS_PROFILE) $(REGISTRY_IMAGE) -Premote-sql -pl integration-tests -Dmaven.javadoc.skip=true --no-transfer-progress
 
-.PHONY: run-sql-upgrade-tests ## Runs sql e2e tests
-run-sql-upgrade-tests:
-	@echo "----------------------------------------------------------------------"
-	@echo "                 Running Sql Integration Tests                        "
-	@echo "----------------------------------------------------------------------"
-	./mvnw verify -am --no-transfer-progress -Pintegration-tests -Psqlit $(REGISTRY_IMAGE) -Premote-sql -pl integration-tests -Dmaven.javadoc.skip=true --no-transfer-progress
-
 .PHONY: run-sql-auth-tests ## Runs sql auth integration tests
 run-sql-auth-tests:
 	@echo "----------------------------------------------------------------------"
@@ -379,14 +417,6 @@ run-sql-migration-integration-tests:
 	@echo "----------------------------------------------------------------------"
 	./mvnw verify -am --no-transfer-progress -Pintegration-tests -Pmigration -Premote-sql -pl integration-tests -Dmaven.javadoc.skip=true --no-transfer-progress
 
-.PHONY: run-sql-multitenancy-integration-tests ## Runs multitenancy integration tests
-run-sql-multitenancy-integration-tests:
-	@echo "----------------------------------------------------------------------"
-	@echo "               Running Multitenancy Integration Tests                 "
-	@echo "----------------------------------------------------------------------"
-	./mvnw verify -am --no-transfer-progress -Pintegration-tests -Pmultitenancy -Premote-sql -pl integration-tests -Dmaven.javadoc.skip=true --no-transfer-progress -DtrimStackTrace=false
-
-
 ############################################# KafkaSql Integration Tests #########################################################################
 
 
@@ -397,12 +427,6 @@ run-kafkasql-integration-tests:
 	@echo "----------------------------------------------------------------------"
 	./mvnw verify -am --no-transfer-progress -Pintegration-tests -P$(INTEGRATION_TESTS_PROFILE) -Premote-kafka -pl integration-tests -Dmaven.javadoc.skip=true --no-transfer-progress
 
-.PHONY: run-kafkasql-upgrade-tests ## Runs sql e2e tests
-run-kafkasql-upgrade-tests :
-	@echo "----------------------------------------------------------------------"
-	@echo "                 Running KafkaSql Upgrade Integration Tests                        "
-	@echo "----------------------------------------------------------------------"
-	./mvnw verify -am --no-transfer-progress -Pintegration-tests -Pkafkasqlit -Premote-kafka -pl integration-tests -Dmaven.javadoc.skip=true --no-transfer-progress
 
 .PHONY: run-kafkasql-migration-integration-tests ## Runs kafkasql migration integration tests
 run-kafkasql-migration-integration-tests:
@@ -458,7 +482,7 @@ run-mssql-migration-integration-tests:
 
 
 .PHONY: integration-tests ## Runs all integration tests [SKIP_TESTS, BUILD_FLAGS]
-integration-tests: build-all  run-ui-tests run-sql-integration-tests run-mssql-integration-tests run-mssql-clustered-integration-tests run-kafkasql-integration-tests run-multitenancy-integration-tests run-sql-migration-integration-tests run-mssql-migration-integration-tests run-kafkasql-migration-integration-tests run-sql-auth-integration-tests run-mssql-auth-integration-tests run-kafkasql-auth-integration-tests run-sql-legacy-tests run-mssql-legacy-tests run-kafkasql-legacy-tests
+integration-tests: build-all  run-ui-tests run-sql-integration-tests run-mssql-integration-tests run-mssql-clustered-integration-tests run-kafkasql-integration-tests run-sql-migration-integration-tests run-mssql-migration-integration-tests run-kafkasql-migration-integration-tests run-sql-auth-integration-tests run-mssql-auth-integration-tests run-kafkasql-auth-integration-tests run-sql-legacy-tests run-mssql-legacy-tests run-kafkasql-legacy-tests
 
 # Please declare your targets as .PHONY in the format shown below, so that the 'make help' parses the information correctly.
 #

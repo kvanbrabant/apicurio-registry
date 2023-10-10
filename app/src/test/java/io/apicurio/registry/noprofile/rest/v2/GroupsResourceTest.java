@@ -22,6 +22,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.anything;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.equalToObject;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -41,6 +42,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +61,8 @@ import com.google.common.hash.Hashing;
 
 import io.apicurio.registry.AbstractResourceTestBase;
 import io.apicurio.registry.rest.client.exception.RuleViolationException;
+import io.apicurio.registry.rest.v2.beans.ArtifactOwner;
+import io.apicurio.registry.types.ArtifactState;
 import io.apicurio.registry.rest.v2.beans.ArtifactMetaData;
 import io.apicurio.registry.rest.v2.beans.ArtifactReference;
 import io.apicurio.registry.rest.v2.beans.Comment;
@@ -66,6 +70,7 @@ import io.apicurio.registry.rest.v2.beans.EditableMetaData;
 import io.apicurio.registry.rest.v2.beans.IfExists;
 import io.apicurio.registry.rest.v2.beans.NewComment;
 import io.apicurio.registry.rest.v2.beans.Rule;
+import io.apicurio.registry.rest.v2.beans.UpdateState;
 import io.apicurio.registry.rest.v2.beans.VersionMetaData;
 import io.apicurio.registry.rules.compatibility.jsonschema.diff.DiffType;
 import io.apicurio.registry.storage.impl.sql.SqlUtil;
@@ -142,42 +147,93 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
                 .statusCode(200)
                 .body("openapi", not(equalTo("3.0.2")))
                 .body("info.title", not(equalTo("Empty API")));
-
-        // Test using v1 API to access artifact in the null group
-        given()
-                .when()
-                .pathParam("artifactId", "testDefaultGroup/EmptyAPI/1")
-                .get("/registry/v1/artifacts/{artifactId}")
-                .then()
-                .statusCode(200)
-                .body("openapi", equalTo("3.0.2"))
-                .body("info.title", equalTo("Empty API"));
-
-        // Create artifact using V1 API
-        createArtifact("testDefaultGroup/EmptyAPI/6", ArtifactType.OPENAPI, oaiArtifactContent);
-
-        // Test using v1 API to access artifact
-        given()
-                .when()
-                .pathParam("artifactId", "testDefaultGroup/EmptyAPI/6")
-                .get("/registry/v1/artifacts/{artifactId}")
-                .then()
-                .statusCode(200)
-                .body("openapi", equalTo("3.0.2"))
-                .body("info.title", equalTo("Empty API"));
-
-        // Test using v2 API to access artifact
-        given()
-                .when()
-                .pathParam("groupId", nullGroup)
-                .pathParam("artifactId", "testDefaultGroup/EmptyAPI/6")
-                .get("/registry/v2/groups/{groupId}/artifacts/{artifactId}")
-                .then()
-                .statusCode(200)
-                .body("openapi", equalTo("3.0.2"))
-                .body("info.title", equalTo("Empty API"));
+    }
+    
+    @Test
+    public void testCreateArtifactRule() throws Exception
+    {
+    	String oaiArtifactContent = resourceToString("openapi-empty.json");
+    	createArtifact("testCreateArtifactRule", "testCreateArtifactRule/EmptyAPI/1", ArtifactType.OPENAPI, oaiArtifactContent);
+    	
+    	//Test Rule type null
+    	Rule nullType = new Rule();
+    	nullType.setType(null);
+    	nullType.setConfig("TestConfig");
+    	given()
+	        	.when()
+	        	.contentType(CT_JSON)
+	    		.pathParam("groupId", "testCreateArtifactRule")
+	    		.pathParam("artifactId", "testCreateArtifactRule/EmptyAPI/1")
+	    		.body(nullType)
+	    		.post("/registry/v2/groups/{groupId}/artifacts/{artifactId}/rules")
+	        	.then()	
+	    		.statusCode(400);
+    	
+    	//Test Rule config null
+    	Rule nullConfig = new Rule();
+    	nullConfig.setType(RuleType.VALIDITY);
+    	nullConfig.setConfig(null);
+    	given()
+	        	.when()
+	        	.contentType(CT_JSON)
+	    		.pathParam("groupId", "testCreateArtifactRule")
+	    		.pathParam("artifactId", "testCreateArtifactRule/EmptyAPI/1")
+	    		.body(nullConfig)
+	    		.post("/registry/v2/groups/{groupId}/artifacts/{artifactId}/rules")
+	        	.then()
+	    		.statusCode(400);
+    	
+    	//Test Rule config empty
+    	Rule emptyConfig = new Rule();
+    	emptyConfig.setType(RuleType.VALIDITY);
+    	emptyConfig.setConfig("");
+    	given()
+	        	.when()
+	        	.contentType(CT_JSON)
+	    		.pathParam("groupId", "testCreateArtifactRule")
+	    		.pathParam("artifactId", "testCreateArtifactRule/EmptyAPI/1")
+	    		.body(emptyConfig)
+	    		.post("/registry/v2/groups/{groupId}/artifacts/{artifactId}/rules")
+	        	.then()
+	    		.statusCode(400);
+    	
     }
 
+    @Test
+    public void testUpdateArtifactOwner() throws Exception {
+        String oaiArtifactContent = resourceToString("openapi-empty.json");
+        createArtifact("testUpdateArtifactOwner", "testUpdateArtifactOwner/EmptyAPI/1",ArtifactType.OPENAPI, oaiArtifactContent);
+
+        ArtifactOwner artifactOwner = new ArtifactOwner("newOwner");
+
+        given()
+                .when()
+                .contentType(CT_JSON)
+                .pathParam("groupId", "testUpdateArtifactOwner")
+                .pathParam("artifactId", "testUpdateArtifactOwner/EmptyAPI/1")
+                .body(artifactOwner)
+                .put("/registry/v2/groups/{groupId}/artifacts/{artifactId}/owner")
+                .then()
+                .statusCode(204);
+    }
+
+    @Test
+    public void testUpdateEmptyArtifactOwner() throws Exception {
+        String oaiArtifactContent = resourceToString("openapi-empty.json");
+        createArtifact("testUpdateEmptyArtifactOwner", "testUpdateEmptyArtifactOwner/EmptyAPI/1",ArtifactType.OPENAPI, oaiArtifactContent);
+
+        ArtifactOwner artifactOwner = new ArtifactOwner("");
+
+        given()
+                .when()
+                .contentType(CT_JSON)
+                .pathParam("groupId", "testUpdateEmptyArtifactOwner")
+                .pathParam("artifactId", "testUpdateEmptyArtifactOwner/EmptyAPI/1")
+                .body(artifactOwner)
+                .put("/registry/v2/groups/{groupId}/artifacts/{artifactId}/owner")
+                .then()
+                .statusCode(400);
+    }
 
     @Test
     public void testMultipleGroups() throws Exception {
@@ -600,6 +656,93 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
                 .body("type", equalTo(ArtifactType.OPENAPI));
 
     }
+
+    @Test
+    public void testUpdateArtifactState() throws Exception {
+        String oaiArtifactContent = resourceToString("openapi-empty.json");
+        createArtifact("testUpdateArtifactState", "testUpdateArtifactState/EmptyAPI/1",ArtifactType.OPENAPI, oaiArtifactContent);
+
+        UpdateState updateState = new UpdateState();
+        updateState.setState(ArtifactState.DEPRECATED);
+
+        // Update the artifact state to DEPRECATED.
+        given()
+                .when()
+                .contentType(CT_JSON)
+                .pathParam("groupId", "testUpdateArtifactState")
+                .pathParam("artifactId", "testUpdateArtifactState/EmptyAPI/1")
+                .body(updateState)
+                .put("/registry/v2/groups/{groupId}/artifacts/{artifactId}/state")
+                .then()
+                .statusCode(204);
+
+        // Update the artifact state to DEPRECATED again.
+        given()
+                .when()
+                .contentType(CT_JSON)
+                .pathParam("groupId", "testUpdateArtifactState")
+                .pathParam("artifactId", "testUpdateArtifactState/EmptyAPI/1")
+                .body(updateState)
+                .put("/registry/v2/groups/{groupId}/artifacts/{artifactId}/state")
+                .then()
+                .statusCode(204);
+
+        // Send a GET request to check if the artifact state is DEPRECATED.
+        given()
+                .when()
+                .contentType(CT_JSON)
+                .pathParam("groupId", "testUpdateArtifactState")
+                .pathParam("artifactId", "testUpdateArtifactState/EmptyAPI/1")
+                .get("/registry/v2/groups/{groupId}/artifacts/{artifactId}")
+                .then()
+                .statusCode(200)
+                .header("X-Registry-Deprecated", "true");
+        }
+
+    @Test
+    public void testUpdateArtifactVersionState() throws Exception {
+        String oaiArtifactContent = resourceToString("openapi-empty.json");
+        createArtifact("testUpdateArtifactVersionState", "testUpdateArtifactVersionState/EmptyAPI",ArtifactType.OPENAPI, oaiArtifactContent);
+
+        UpdateState updateState = new UpdateState();
+        updateState.setState(ArtifactState.DEPRECATED);
+
+         // Update the artifact state to DEPRECATED.
+        given()
+                .when()
+                .contentType(CT_JSON)
+                .pathParam("groupId", "testUpdateArtifactVersionState")
+                .pathParam("artifactId", "testUpdateArtifactVersionState/EmptyAPI")
+                .pathParam("versionId", "1")
+                .body(updateState)
+                .put("/registry/v2/groups/{groupId}/artifacts/{artifactId}/versions/{versionId}/state")
+                .then()
+                .statusCode(204);
+
+        // Update the artifact state to DEPRECATED again.
+        given()
+                .when()
+                .contentType(CT_JSON)
+                .pathParam("groupId", "testUpdateArtifactVersionState")
+                .pathParam("artifactId", "testUpdateArtifactVersionState/EmptyAPI")
+                .pathParam("versionId", "1")
+                .body(updateState)
+                .put("/registry/v2/groups/{groupId}/artifacts/{artifactId}/versions/{versionId}/state")
+                .then()
+                .statusCode(204);
+
+        // Send a GET request to check if the artifact state is DEPRECATED.
+        given()
+                .when()
+                .contentType(CT_JSON)
+                .pathParam("groupId", "testUpdateArtifactVersionState")
+                .pathParam("artifactId", "testUpdateArtifactVersionState/EmptyAPI")
+                .pathParam("versionId", "1")
+                .get("/registry/v2/groups/{groupId}/artifacts/{artifactId}/versions/{versionId}")
+                .then()
+                .statusCode(200)
+                .header("X-Registry-Deprecated", "true");
+        }
 
     @Test
     @DisabledIfEnvironmentVariable(named = CURRENT_ENV, matches = CURRENT_ENV_MAS_REGEX)
@@ -1688,7 +1831,6 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
         String title = "Empty API " + idx;
         String artifactId = "Empty-" + idx;
         this.createArtifact(group, artifactId, ArtifactType.OPENAPI, artifactContent.replaceAll("Empty API", title));
-        waitForArtifact(group, artifactId);
 
         Map<String, String> props = new HashMap<>();
         props.put("test-key", null);
@@ -1846,8 +1988,6 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
                 .body("description", equalTo("An example API design using OpenAPI."))
                 .body("type", equalTo(artifactType));
 
-        this.waitForArtifact(GROUP, artifactId);
-
         // Get the artifact content (should be JSON)
         given()
                 .when()
@@ -1882,8 +2022,6 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
                 .statusCode(200)
                 .body("id", equalTo(artifactId))
                 .body("type", equalTo(artifactType));
-
-        this.waitForArtifact(GROUP, artifactId);
 
         // Get the artifact content (should be XML)
         given()
@@ -1953,9 +2091,7 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
                 .body("createdOn", anything())
                 .body("version", equalTo("2"))
                 .body("description", equalTo("An example API design using OpenAPI."));
-        Integer globalId2 = resp.extract().body().path("globalId");
-
-        this.waitForGlobalId(globalId2);
+        /*Integer globalId2 = */resp.extract().body().path("globalId");
 
         // Try to create the same artifact ID with ReturnOrUpdate - should return v1 (matching content)
         resp = given()
@@ -2128,15 +2264,6 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
                 .body("openapi", equalTo("3.0.2"))
                 .body("info.title", equalTo("Empty API"));
 
-        given()
-                .when()
-                .pathParam("artifactId", artifactId)
-                .get("/registry/v1/artifacts/{artifactId}")
-                .then()
-                .statusCode(200)
-                .body("openapi", not(equalTo("3.0.2")))
-                .body("info.title", not(equalTo("Empty API")));
-
         // Verify the metadata
         given()
                 .when()
@@ -2152,21 +2279,6 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
                 .body("createdOn", anything())
                 .body("name", equalTo("Empty API"))
                 .body("description", equalTo("An example API design using OpenAPI."));
-
-        given()
-                .when()
-                .pathParam("artifactId", artifactId)
-                .get("/registry/v1/artifacts/{artifactId}/meta")
-                .then()
-                .statusCode(200)
-                .body("groupId", nullValue())
-                .body("id", equalTo(artifactId))
-                .body("version", anything())
-                .body("type", equalTo(ArtifactType.OPENAPI))
-                .body("createdOn", anything())
-                .body("name", not(equalTo("Empty API")))
-                .body("description", not(equalTo("An example API design using OpenAPI.")));
-
     }
 
     @Test
@@ -2191,7 +2303,6 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
                 .body("id", equalTo(artifactId))
                 .body("groupId", equalTo(groupId))
                 .body("version", equalTo("1.0.0"));
-        waitForArtifact(groupId, artifactId);
 
         // Make sure we can get the artifact content by version
         given()
@@ -2372,7 +2483,6 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
                 .extract().as(ArtifactMetaData.class);
         // Save the metadata for artifact #1 for later use
         var referencedMD = metadata;
-        waitForArtifact(metadata.getId());
 
         // Create #2 referencing the #1, using different content
         List<ArtifactReference> references = List.of(ArtifactReference.builder()
@@ -2388,7 +2498,6 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
         metadata = response
                 .statusCode(HTTP_OK)
                 .extract().as(ArtifactMetaData.class);
-        waitForArtifact(metadata.getId());
         // Save the referencing artifact metadata for later use
         var referencingMD = metadata;
         assertEquals(references, metadata.getReferences());
@@ -2741,6 +2850,61 @@ public class GroupsResourceTest extends AbstractResourceTestBase {
             clientV2.updateArtifact(GROUP, artifactId, "2", null, null, dataf_3, referencesf_3);
         });
 
+    }
+
+
+    @Test
+    public void testGetArtifactVersionWithReferences() throws Exception {
+        String referencedTypesContent = resourceToString("referenced-types.json");
+        String withExternalRefContent = resourceToString("openapi-with-external-ref.json");
+
+        // Create the artifact containing a type to be referenced
+        createArtifact(GROUP, "testGetArtifactVersionWithReferences/ReferencedTypes", ArtifactType.OPENAPI, referencedTypesContent);
+
+        // Create the artifact that references the type
+        List<ArtifactReference> refs = Collections.singletonList(
+                ArtifactReference.builder()
+                .name("./referenced-types.json#/components/schemas/Widget")
+                .groupId(GROUP)
+                .artifactId("testGetArtifactVersionWithReferences/ReferencedTypes")
+                .version("1")
+                .build());
+        createArtifactWithReferences(GROUP, "testGetArtifactVersionWithReferences/WithExternalRef", ArtifactType.OPENAPI, withExternalRefContent, refs);
+        
+        // Get the content of the artifact preserving external references
+        given()
+        .when()
+            .pathParam("groupId", GROUP)
+            .pathParam("artifactId", "testGetArtifactVersionWithReferences/WithExternalRef")
+        .get("/registry/v2/groups/{groupId}/artifacts/{artifactId}")
+        .then()
+            .statusCode(200)
+            .body("openapi", equalTo("3.0.2"))
+            .body("paths.widgets.get.responses.200.content.json.schema.items.$ref", equalTo("./referenced-types.json#/components/schemas/Widget"));
+        
+        // Get the content of the artifact rewriting external references
+        given()
+        .when()
+            .pathParam("groupId", GROUP)
+            .pathParam("artifactId", "testGetArtifactVersionWithReferences/WithExternalRef")
+            .queryParam("references", "REWRITE")
+        .get("/registry/v2/groups/{groupId}/artifacts/{artifactId}")
+        .then()
+            .statusCode(200)
+            .body("openapi", equalTo("3.0.2"))
+            .body("paths.widgets.get.responses.200.content.json.schema.items.$ref", endsWith("/apis/registry/v2/groups/GroupsResourceTest/artifacts/testGetArtifactVersionWithReferences%2FReferencedTypes/versions/1?references=REWRITE#/components/schemas/Widget"));
+        
+        // Get the content of the artifact inlining/dereferencing external references
+        given()
+        .when()
+            .pathParam("groupId", GROUP)
+            .pathParam("artifactId", "testGetArtifactVersionWithReferences/WithExternalRef")
+            .queryParam("references", "DEREFERENCE")
+        .get("/registry/v2/groups/{groupId}/artifacts/{artifactId}")
+        .then()
+            .statusCode(200)
+            .body("openapi", equalTo("3.0.2"))
+            .body("paths.widgets.get.responses.200.content.json.schema.items.$ref", equalTo("#/components/schemas/Widget"));
     }
 
 }

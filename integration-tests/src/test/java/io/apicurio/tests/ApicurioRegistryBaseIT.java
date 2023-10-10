@@ -281,10 +281,6 @@ public class ApicurioRegistryBaseIT implements TestSeparator, Constants {
         return getRegistryBaseUrl(port).concat("/apis");
     }
 
-    public static String getRegistryV1ApiUrl() {
-        return getRegistryApiUrl().concat("/registry/v1");
-    }
-
     public static String getRegistryV2ApiUrl() {
         return getRegistryApiUrl().concat("/registry/v2");
     }
@@ -307,14 +303,6 @@ public class ApicurioRegistryBaseIT implements TestSeparator, Constants {
         } else {
             return String.format("http://%s:%s", System.getProperty("quarkus.http.test-host"), port);
         }
-    }
-
-    public static String getTenantManagerUrl() {
-        if (System.getProperty("tenant.manager.external.endpoint") != null) {
-            return String.format("http://%s:%s", System.getProperty("tenant.manager.external.endpoint"), 8585);
-        }
-
-        return "http://localhost:8585";
     }
 
     public static String getKeycloakBaseUrl() {

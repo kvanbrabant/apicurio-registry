@@ -155,6 +155,11 @@ public interface SqlStatements {
     public String selectArtifactVersions();
 
     /**
+     * A statement used to select all version #s for a given artifactId.
+     */
+    public String selectArtifactVersionsSkipDisabled();
+
+    /**
      * A statement used to select all versions for a given artifactId.
      */
     public String selectAllArtifactVersions();
@@ -370,6 +375,8 @@ public interface SqlStatements {
      */
     public String selectArtifactIds();
 
+    String selectArtifactIdsInGroup();
+
     /**
      * A statement to get an artifact's meta-data by version globalId.
      */
@@ -471,29 +478,9 @@ public interface SqlStatements {
     public String deleteAllOrphanedContent();
 
     /**
-     * A statement to delete all content owned by a tenantId
+     * A statement to delete all content
      */
     public String deleteAllContent();
-
-    /**
-     * A statement to select the log configuration for a given logger name
-     */
-    public String selectLogConfigurationByLogger();
-
-    /**
-     * A statement to "upsert" a row in the "logconfiguration" table
-     */
-    public String upsertLogConfiguration();
-
-    /**
-     * A statement to delete a row in the "logconfiguration" table
-     */
-    public String deleteLogConfiguration();
-
-    /**
-     * A statement to select all rows in the "logconfiguration" table
-     */
-    public String selectAllLogConfigurations();
 
     /**
      * A statement used to insert a row into the groups table.
@@ -526,7 +513,7 @@ public interface SqlStatements {
     public String selectGroupByGroupId();
 
     /*
-     * The next few statements support globalId and contentId management, having into account a multitenant environment
+     * The next few statements support globalId and contentId management.
      */
 
     public String getNextSequenceValue();
@@ -626,7 +613,7 @@ public interface SqlStatements {
 
     public String selectConfigPropertyByName();
 
-    public String selectTenantIdsByConfigModifiedOn();
+    public String selectStaleConfigProperties();
 
     public String deleteAllReferences();
 

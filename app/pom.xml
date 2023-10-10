@@ -59,18 +59,6 @@
             <groupId>io.apicurio</groupId>
             <artifactId>apicurio-common-app-components-auth</artifactId>
         </dependency>
-
-        <dependency>
-            <groupId>io.apicurio</groupId>
-            <artifactId>apicurio-common-app-components-multitenancy</artifactId>
-        </dependency>
-
-        <!-- Tenant Manager Client -->
-        <dependency>
-            <groupId>io.apicurio</groupId>
-            <artifactId>apicurio-tenant-manager-client</artifactId>
-        </dependency>
-
         <dependency>
             <groupId>io.apicurio</groupId>
             <artifactId>apicurio-common-rest-client-jdk</artifactId>
@@ -229,6 +217,11 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -500,6 +493,8 @@
                                 <import>${project.basedir}/src/test/resources/io/apicurio/registry/serde/AvroSchemaD.avsc</import>
                                 <import>${project.basedir}/src/test/resources/io/apicurio/registry/serde/AvroSchemaC.avsc</import>
                                 <import>${project.basedir}/src/test/resources/io/apicurio/registry/serde/AvroSchemaB.avsc</import>
+                                <import>${project.basedir}/src/test/resources/io/apicurio/registry/ccompat/rest/subrecord.avsc</import>
+                                <import>${project.basedir}/src/test/resources/io/apicurio/registry/ccompat/rest/record.avsc</import>
                             </imports>
                             <sourceDirectory>${project.basedir}/src/test/resources/io/apicurio/registry/serde/</sourceDirectory>
                             <outputDirectory>${project.basedir}/target/generated-test-sources</outputDirectory>

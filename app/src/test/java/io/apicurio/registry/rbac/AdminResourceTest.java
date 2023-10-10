@@ -16,56 +16,12 @@
 
 package io.apicurio.registry.rbac;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.anyOf;
-import static org.hamcrest.CoreMatchers.anything;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
-
-import io.apicurio.common.apps.config.Info;
 import io.apicurio.registry.AbstractResourceTestBase;
 import io.apicurio.registry.rest.client.exception.ArtifactNotFoundException;
-import io.apicurio.registry.rest.v2.beans.ArtifactReference;
-import io.apicurio.registry.rest.v2.beans.Comment;
-import io.apicurio.registry.rest.v2.beans.LogConfiguration;
-import io.apicurio.registry.rest.v2.beans.NamedLogConfiguration;
-import io.apicurio.registry.rest.v2.beans.RoleMapping;
-import io.apicurio.registry.rest.v2.beans.Rule;
-import io.apicurio.registry.rest.v2.beans.UpdateConfigurationProperty;
-import io.apicurio.registry.rest.v2.beans.UpdateRole;
+import io.apicurio.registry.rest.v2.beans.*;
 import io.apicurio.registry.rules.compatibility.CompatibilityLevel;
 import io.apicurio.registry.rules.integrity.IntegrityLevel;
 import io.apicurio.registry.types.ArtifactType;
-import io.apicurio.registry.types.LogLevel;
 import io.apicurio.registry.types.RoleType;
 import io.apicurio.registry.types.RuleType;
 import io.apicurio.registry.utils.tests.ApicurioTestTags;
@@ -74,9 +30,26 @@ import io.apicurio.registry.utils.tests.TestUtils;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
 import io.restassured.http.ContentType;
-import io.restassured.response.Response;
 import io.restassured.response.ValidatableResponse;
-import io.vertx.core.json.JsonObject;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.CoreMatchers.anything;
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author eric.wittmann@gmail.com
@@ -87,10 +60,6 @@ import io.vertx.core.json.JsonObject;
 @Tag(ApicurioTestTags.SLOW)
 public class AdminResourceTest extends AbstractResourceTestBase {
 
-    @ConfigProperty(name = "quarkus.log.level")
-    @Info(category = "log", description = "Log level", availableSince = "2.0.0.Final")
-    String defaultLogLevel;
-
     @Test
     public void testGlobalRulesEndpoint() {
         given()
@@ -100,6 +69,47 @@ public class AdminResourceTest extends AbstractResourceTestBase {
             .then()
                 .statusCode(200)
                 .body(anything());
+    }
+    
+    @Test
+    public void testCreateGlobalRule() throws Exception
+    {
+    	//Test Rule type null
+    	Rule nullType = new Rule();
+    	nullType.setType(null);
+    	nullType.setConfig("TestConfig");
+    	given()
+        	.when()
+        		.contentType(CT_JSON)
+        		.body(nullType)
+        		.post("/registry/v2/admin/rules")
+        	.then()
+        		.statusCode(400);
+    	
+    	//Test Rule config null
+    	Rule nullConfig = new Rule();
+    	nullConfig.setType(RuleType.VALIDITY);
+    	nullConfig.setConfig(null);
+    	given()
+        	.when()
+        		.contentType(CT_JSON)
+        		.body(nullConfig)
+        		.post("/registry/v2/admin/rules")
+        	.then()
+        		.statusCode(400);
+    	
+    	//Test Rule config empty
+    	Rule emptyConfig = new Rule();
+    	emptyConfig.setType(RuleType.VALIDITY);
+    	emptyConfig.setConfig("");
+    	given()
+        	.when()
+        		.contentType(CT_JSON)
+        		.body(emptyConfig)
+        		.post("/registry/v2/admin/rules")
+        	.then()
+        		.statusCode(400);
+    	
     }
 
     @Test
@@ -407,182 +417,6 @@ public class AdminResourceTest extends AbstractResourceTestBase {
     }
 
     @Test
-    void testLoggerSetsLevel() throws Exception {
-        String testLoggerName = "foo.logger.testLoggerSetsLevel";
-        Logger logger = Logger.getLogger(testLoggerName);
-        logger.setLevel(Level.parse(defaultLogLevel));
-
-        String defaultLogLevel = Logger.getLogger(testLoggerName).getLevel().getName();
-        TestUtils.retry(() -> {
-            verifyLogLevel(testLoggerName, LogLevel.fromValue(defaultLogLevel));
-        });
-
-        //remove default log level to avoid conflicts with the checkLogLevel daemon process
-        List<LogLevel> levels =  EnumSet.allOf(LogLevel.class)
-            .stream()
-            .filter(l -> !l.value().equals(defaultLogLevel))
-            .collect(Collectors.toList());
-
-
-        for (LogLevel level : levels) {
-            LogConfiguration lc = new LogConfiguration();
-            lc.setLevel(level);
-            given()
-                .when()
-                    .body(lc)
-                    .contentType(ContentType.JSON)
-                    .pathParam("logger", testLoggerName)
-                    .put("/registry/v2/admin/loggers/{logger}")
-                .then()
-                    .statusCode(200)
-                    .contentType(ContentType.JSON)
-                    .body("level", is(level.value()));
-            TestUtils.retry(() -> assertEquals(level.value(), Logger.getLogger(testLoggerName).getLevel().getName()));
-        }
-
-        clearLogConfig(testLoggerName);
-    }
-
-    @Test
-    void testLoggerInvalidLevel() {
-        JsonObject lc = new JsonObject().put("level", "FOO");
-        given()
-            .when()
-                .body(lc)
-                .contentType(ContentType.JSON)
-                .pathParam("logger", "foo.logger.invalid")
-                .put("/registry/v2/admin/loggers/{logger}")
-            .then()
-                .statusCode(400);
-    }
-
-    private void verifyLogLevel(String loggerName, LogLevel level) {
-        given()
-            .when()
-                .pathParam("logger", loggerName)
-                .get("/registry/v2/admin/loggers/{logger}")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("level", is(level.value()));
-    }
-
-    private void clearLogConfig(String loggerName) throws Exception {
-        given()
-        .when()
-            .pathParam("logger", loggerName)
-            .delete("/registry/v2/admin/loggers/{logger}")
-        .then()
-            .statusCode(200);
-
-        TestUtils.retry(() -> {
-            Response res = given()
-                    .when()
-                        .get("/registry/v2/admin/loggers")
-                    .thenReturn();
-                assertEquals(200, res.statusCode());
-                NamedLogConfiguration[] configs = res.as(NamedLogConfiguration[].class);
-
-                assertTrue(Stream.of(configs)
-                        .filter(named -> named.getName().equals(loggerName))
-                        .findAny()
-                        .isEmpty());
-
-        }, "Clear log config", 50);
-    }
-
-    @Test
-    void testLoggersCRUD() throws Exception {
-        String testLoggerName = "foo.logger.testLoggersCRUD";
-        Logger logger = Logger.getLogger(testLoggerName);
-        logger.setLevel(Level.parse(defaultLogLevel));
-
-        String defaultLogLevel = Logger.getLogger(testLoggerName).getLevel().getName();
-        TestUtils.retry(() -> {
-            verifyLogLevel(testLoggerName, LogLevel.fromValue(defaultLogLevel));
-        });
-
-        Consumer<LogLevel> setLog = (level) -> {
-            LogConfiguration lc = new LogConfiguration();
-            lc.setLevel(level);
-            given()
-                .when()
-                    .body(lc)
-                    .contentType(ContentType.JSON)
-                    .pathParam("logger", testLoggerName)
-                    .put("/registry/v2/admin/loggers/{logger}")
-                .then()
-                    .statusCode(200)
-                    .contentType(ContentType.JSON)
-                    .body("level", is(level.value()));
-        };
-
-        Consumer<LogLevel> verifyLevel = (level) -> {
-            Response res = given()
-                .when()
-                    .get("/registry/v2/admin/loggers")
-                .thenReturn();
-            NamedLogConfiguration[] configs = res.as(NamedLogConfiguration[].class);
-
-            assertTrue(Stream.of(configs)
-                    .filter(named -> named.getName().equals(testLoggerName) && named.getLevel().equals(level))
-                    .findAny()
-                    .isPresent());
-
-            String actualLevel = Logger.getLogger(testLoggerName).getLevel().getName();
-            assertEquals(level.value(), actualLevel,
-                    "Log value for logger " + testLoggerName + " was NOT set to '" + level.value() + "' it was '" + actualLevel + "', even though the server reported it was.");
-        };
-
-
-        //remove default log level to avoid conflicts with the checkLogLevel daemon process
-        List<LogLevel> levels = EnumSet.allOf(LogLevel.class)
-            .stream()
-            .filter(l -> !l.value().equals(defaultLogLevel))
-            .collect(Collectors.toList());
-        //pick two random levels that are not the default level
-        Random r = new Random();
-
-        Map<String, LogLevel> testLevels = new HashMap<>();
-        TestUtils.retry(() -> {
-            testLevels.put("first", levels.get(r.nextInt(levels.size())));
-            testLevels.put("second", levels.get(r.nextInt(levels.size())));
-            assertNotEquals(testLevels.get("first"), testLevels.get("second"));
-        });
-        LogLevel firstLevel = testLevels.get("first");
-        LogLevel secondLevel = testLevels.get("second");
-
-        System.out.println("Going to test log level change from " + defaultLogLevel + " to " + firstLevel.name() + " and then to " + secondLevel.name());
-
-        setLog.accept(firstLevel);
-        TestUtils.retry(() -> {
-            verifyLogLevel(testLoggerName, firstLevel);
-            verifyLevel.accept(firstLevel);
-        });
-
-        setLog.accept(secondLevel);
-        TestUtils.retry(() -> {
-            verifyLogLevel(testLoggerName, secondLevel);
-            verifyLevel.accept(secondLevel);
-        });
-
-        clearLogConfig(testLoggerName);
-
-        TestUtils.retry(() -> {
-            Response res = given()
-                    .when()
-                        .pathParam("logger", testLoggerName)
-                        .get("/registry/v2/admin/loggers/{logger}")
-                    .thenReturn();
-
-                assertEquals(200, res.statusCode());
-                NamedLogConfiguration cfg = res.getBody().as(NamedLogConfiguration.class);
-
-                assertEquals(cfg.getLevel().value(), Logger.getLogger(testLoggerName).getLevel().getName());
-        });
-    }
-
-    @Test
     void testExport() throws Exception {
         String artifactContent = resourceToString("openapi-empty.json");
         String group = "testExport";
@@ -592,7 +426,6 @@ public class AdminResourceTest extends AbstractResourceTestBase {
             String title = "Empty API " + idx;
             String artifactId = "Empty-" + idx;
             this.createArtifact(group, artifactId, ArtifactType.OPENAPI, artifactContent.replaceAll("Empty API", title));
-            waitForArtifact(group, artifactId);
         }
 
         ValidatableResponse response = given()
@@ -637,7 +470,6 @@ public class AdminResourceTest extends AbstractResourceTestBase {
             String artifactId = "Empty-" + idx;
             List<ArtifactReference> refs = idx > 0 ? getSingletonRefList(group, "Empty-" + (idx - 1), "1", "ref") : Collections.emptyList();
             this.createArtifactWithReferences(group, artifactId, ArtifactType.OPENAPI, artifactContent.replaceAll("Empty API", title), refs);
-            waitForArtifact(group, artifactId);
         }
 
         // Export data (browser flow).
@@ -815,7 +647,7 @@ public class AdminResourceTest extends AbstractResourceTestBase {
                 .then()
                     .statusCode(409)
                     .body("error_code", equalTo(409))
-                    .body("message", equalTo("A role mapping for this principal already exists."));
+                    .body("message", equalTo("A mapping for principal 'TestUser' and role 'DEVELOPER' already exists."));
         });
 
         // Add another mapping
@@ -886,7 +718,7 @@ public class AdminResourceTest extends AbstractResourceTestBase {
                 .statusCode(404)
                 .contentType(ContentType.JSON)
                 .body("error_code", equalTo(404))
-                .body("message", equalTo("Role mapping not found for principal."));
+                .body("message", equalTo("No mapping for principal 'UnknownPrincipal' and role 'READ_ONLY' was found."));
 
         // Delete a role mapping
         given()
@@ -905,7 +737,7 @@ public class AdminResourceTest extends AbstractResourceTestBase {
                     .statusCode(404)
                     .contentType(ContentType.JSON)
                     .body("error_code", equalTo(404))
-                    .body("message", equalTo("Role mapping not found for principal."));
+                    .body("message", equalTo("No role mapping for principal 'TestUser2' was found."));
         });
 
         // Get the list of mappings (should be 1 of them)

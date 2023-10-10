@@ -107,7 +107,6 @@
         <module>utils/maven-plugin</module>
         <module>utils/tools</module>
         <module>utils/importexport</module>
-        <module>utils/exportV1</module>
         <module>utils/exportConfluent</module>
         <module>utils/protobuf-schema-utilities</module>
         <module>utils/tests</module>
@@ -156,19 +155,19 @@
         <quarkus.version>3.0.4.Final</quarkus.version>
 
         <!-- Jandex -->
-        <jandex.version>1.1.1</jandex.version>
+        <jandex.version>1.2.1</jandex.version>
 
         <!-- Schema types -->
-        <avro.version>1.11.2</avro.version>
-        <wire-schema.version>4.8.1</wire-schema.version>
+        <avro.version>1.11.3</avro.version>
+        <wire-schema.version>4.9.1</wire-schema.version>
         <wire-compiler.version>4.5.0</wire-compiler.version>
-        <okio-jvm.version>3.5.0</okio-jvm.version>
-        <okio.version>3.5.0</okio.version>
-        <okio-fake-file-system.version>3.4.0</okio-fake-file-system.version>
+        <okio-jvm.version>3.6.0</okio-jvm.version>
+        <okio.version>3.6.0</okio.version>
+        <okio-fake-file-system.version>3.6.0</okio-fake-file-system.version>
         <icu4j.version>73.2</icu4j.version>
-        <protobuf.version>3.24.1</protobuf.version>
+        <protobuf.version>3.24.4</protobuf.version>
         <xmlsec.version>3.0.2</xmlsec.version>
-        <protobuf.googleapi.types.version>2.23.0</protobuf.googleapi.types.version>
+        <protobuf.googleapi.types.version>2.26.0</protobuf.googleapi.types.version>
         <wsdl4j.version>1.6.3</wsdl4j.version>
         <google.truth.extension.version>1.1.5</google.truth.extension.version>
 
@@ -194,13 +193,10 @@
         <skipCommitIdPlugin>true</skipCommitIdPlugin>
 
         <!-- Apicurio Data Models (OpenAPI and AsyncAPI support) -->
-        <apicurio-data-models.version>2.0.3</apicurio-data-models.version>
-
-        <!-- Apicurio Tenant Manager -->
-        <apicurio-tenant-manager.version>0.2.0.Final</apicurio-tenant-manager.version>
+        <apicurio-data-models.version>2.0.4</apicurio-data-models.version>
 
         <!-- GraphQL -->
-        <graphql.version>21.0</graphql.version>
+        <graphql.version>21.1</graphql.version>
 
         <!-- JSON Schema Validator -->
         <org.everit.json.schema.version>1.14.2</org.everit.json.schema.version><!-- TODO unification -->
@@ -208,7 +204,7 @@
         <jackson-dataformat-yaml.version>2.14.2</jackson-dataformat-yaml.version>
 
         <!-- Dependency versions -->
-        <lombok.version>1.18.28</lombok.version>
+        <lombok.version>1.18.30</lombok.version>
         <h2.version>1.4.199</h2.version>
         <commons-codec.version>1.16.0</commons-codec.version>
         <jboss-slf4j.version>1.2.1.Final</jboss-slf4j.version>
@@ -216,11 +212,13 @@
         <apicurio-common-rest-client.version>0.1.18.Final</apicurio-common-rest-client.version>
         <apicurio-common-app-components.version>0.2.1.Final</apicurio-common-app-components.version>
         <sentry.version>1.7.30</sentry.version>
-        <kafka-oauth-client.version>0.13.0</kafka-oauth-client.version>
+        <kafka-oauth-client.version>0.14.0</kafka-oauth-client.version>
         <kafka-clients.version>3.5.1</kafka-clients.version>
-        <snakeyaml.version>2.1</snakeyaml.version>
+        <snakeyaml.version>2.2</snakeyaml.version>
         <guava.version>32.1.2-jre</guava.version>
         <woodstox-core.version>6.5.1</woodstox-core.version>
+        <jgit.version>6.7.0.202309050840-r</jgit.version>
+        <awaitility.version>4.2.0</awaitility.version>
 
         <!-- Kafka Connect -->
         <connect.version>3.5.1</connect.version>
@@ -230,13 +228,13 @@
 
         <!-- Scala -->
         <version.scala-maven.plugin>4.4.0</version.scala-maven.plugin>
-        <scala.version>2.13.11</scala.version>
+        <scala.version>2.13.12</scala.version>
 
         <!-- Plugin Versions -->
         <version.compiler.plugin>3.11.0</version.compiler.plugin>
         <version.deploy.plugin>3.1.1</version.deploy.plugin>
         <version.failsafe.plugin>3.1.2</version.failsafe.plugin>
-        <version.javadoc.plugin>3.5.0</version.javadoc.plugin>
+        <version.javadoc.plugin>3.6.0</version.javadoc.plugin>
         <version.source.plugin>3.3.0</version.source.plugin>
         <version.surefire.plugin>3.1.2</version.surefire.plugin>
         <version.jar.plugin>3.3.0</version.jar.plugin>
@@ -259,10 +257,10 @@
         <!-- Test containers version, should be aligned with version used in Quarkus -->
         <test-containers.version>1.18.3</test-containers.version>
         <keycloak.testcontainers.version>1.9.0</keycloak.testcontainers.version>
-        <keycloak-admin-client.version>22.0.1</keycloak-admin-client.version>
+        <keycloak-admin-client.version>22.0.4</keycloak-admin-client.version>
         <embedded-postgres.version>2.0.4</embedded-postgres.version>
         <strimzi.version>0.104.0</strimzi.version>
-        <wiremock-jre8.version>2.35.0</wiremock-jre8.version>
+        <wiremock-jre8.version>2.35.1</wiremock-jre8.version>
     </properties>
 
     <dependencyManagement>
@@ -388,16 +386,6 @@
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
-                <artifactId>apicurio-tenant-manager-datamodel</artifactId>
-                <version>${apicurio-tenant-manager.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.apicurio</groupId>
-                <artifactId>apicurio-tenant-manager-client</artifactId>
-                <version>${apicurio-tenant-manager.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-utils-import-export</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -452,12 +440,6 @@
                 <artifactId>apicurio-common-app-components-auth</artifactId>
                 <version>${apicurio-common-app-components.version}</version>
             </dependency>
-            <dependency>
-                <groupId>io.apicurio</groupId>
-                <artifactId>apicurio-common-app-components-multitenancy</artifactId>
-                <version>${apicurio-common-app-components.version}</version>
-            </dependency>
-
             <dependency>
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-schema-util-provider</artifactId>
@@ -646,6 +628,11 @@
                 <artifactId>sentry</artifactId>
                 <version>${sentry.version}</version><!--$NO-MVN-MAN-VER$-->
             </dependency>
+            <dependency>
+                <groupId>org.eclipse.jgit</groupId>
+                <artifactId>org.eclipse.jgit</artifactId>
+                <version>${jgit.version}</version>
+            </dependency>
 
             <!-- GraphQL -->
             <dependency>
@@ -687,6 +674,7 @@
                 <artifactId>woodstox-core</artifactId>
                 <version>${woodstox-core.version}</version>
             </dependency>
+
 
             <!-- Tests -->
             <dependency>
@@ -782,6 +770,11 @@
                 <version>${google.truth.extension.version}</version>
                 <scope>test</scope>
             </dependency>
+            <dependency>
+                <groupId>org.awaitility</groupId>
+                <artifactId>awaitility</artifactId>
+                <version>${awaitility.version}</version>
+            </dependency>
 
         </dependencies>
     </dependencyManagement>
@@ -838,14 +831,6 @@
                     <groupId>org.jboss.jandex</groupId>
                     <artifactId>jandex-maven-plugin</artifactId>
                     <version>${jandex.version}</version>
-                    <executions>
-                        <execution>
-                            <id>make-index</id>
-                            <goals>
-                                <goal>jandex</goal>
-                            </goals>
-                        </execution>
-                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>io.quarkus</groupId>
@@ -916,6 +901,18 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <plugin>
+                <groupId>org.jboss.jandex</groupId>
+                <artifactId>jandex-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>make-index</id>
+                        <goals>
+                            <goal>jandex</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>properties-maven-plugin</artifactId>
@@ -1095,6 +1092,12 @@
             <id>kafkasql</id>
             <modules>
                 <module>storage/kafkasql</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>gitops</id>
+            <modules>
+                <module>storage/gitops</module>
             </modules>
         </profile>
         <profile>

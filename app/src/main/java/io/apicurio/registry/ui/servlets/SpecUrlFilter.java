@@ -197,17 +197,11 @@ public class SpecUrlFilter implements Filter {
     private String generateSpecTitle(HttpServletRequest request) {
         String servletPath = request.getServletPath();
 
-        if (servletPath.contains("registry/v1")) {
-            return "Core Registry API (v1)";
-        }
         if (servletPath.contains("registry/v2")) {
             return "Core Registry API (v2)";
         }
         if (servletPath.contains("ccompat")) {
             return "Confluent Schema Registry API";
-        }
-        if (servletPath.contains("ibmcompat")) {
-            return "IBM Schema Registry API";
         }
         if (servletPath.contains("cncf")) {
             return "CNCF Schema Registry API";

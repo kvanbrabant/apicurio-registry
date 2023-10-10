@@ -16,17 +16,45 @@
 
 package io.apicurio.registry.rest.v2;
 
-import static io.apicurio.common.apps.logging.audit.AuditingConstants.KEY_FOR_BROWSER;
-import static io.apicurio.common.apps.logging.audit.AuditingConstants.KEY_LOGGER;
-import static io.apicurio.common.apps.logging.audit.AuditingConstants.KEY_LOG_CONFIGURATION;
-import static io.apicurio.common.apps.logging.audit.AuditingConstants.KEY_PRINCIPAL_ID;
-import static io.apicurio.common.apps.logging.audit.AuditingConstants.KEY_ROLE_MAPPING;
-import static io.apicurio.common.apps.logging.audit.AuditingConstants.KEY_RULE;
-import static io.apicurio.common.apps.logging.audit.AuditingConstants.KEY_RULE_TYPE;
-import static io.apicurio.common.apps.logging.audit.AuditingConstants.KEY_UPDATE_ROLE;
-import static io.apicurio.common.apps.logging.audit.AuditingConstants.KEY_NAME;
-import static io.apicurio.registry.util.DtoUtil.appAuthPropertyToRegistry;
-import static io.apicurio.registry.util.DtoUtil.registryAuthPropertyToApp;
+import io.apicurio.common.apps.config.*;
+import io.apicurio.common.apps.logging.Logged;
+import io.apicurio.common.apps.logging.audit.Audited;
+import io.apicurio.registry.auth.Authorized;
+import io.apicurio.registry.auth.AuthorizedLevel;
+import io.apicurio.registry.auth.AuthorizedStyle;
+import io.apicurio.registry.auth.RoleBasedAccessApiOperation;
+import io.apicurio.registry.metrics.health.liveness.ResponseErrorLivenessCheck;
+import io.apicurio.registry.metrics.health.readiness.ResponseTimeoutReadinessCheck;
+import io.apicurio.registry.rest.MissingRequiredParameterException;
+import io.apicurio.registry.rest.v2.beans.*;
+import io.apicurio.registry.rest.v2.shared.DataExporter;
+import io.apicurio.registry.rules.DefaultRuleDeletionException;
+import io.apicurio.registry.rules.RulesProperties;
+import io.apicurio.registry.storage.RegistryStorage;
+import io.apicurio.registry.storage.dto.DownloadContextDto;
+import io.apicurio.registry.storage.dto.DownloadContextType;
+import io.apicurio.registry.storage.dto.RoleMappingDto;
+import io.apicurio.registry.storage.dto.RuleConfigurationDto;
+import io.apicurio.registry.storage.error.ConfigPropertyNotFoundException;
+import io.apicurio.registry.storage.error.InvalidPropertyValueException;
+import io.apicurio.registry.storage.error.RuleNotFoundException;
+import io.apicurio.registry.storage.impexp.EntityInputStream;
+import io.apicurio.registry.types.Current;
+import io.apicurio.registry.types.RoleType;
+import io.apicurio.registry.types.RuleType;
+import io.apicurio.registry.types.provider.ArtifactTypeUtilProviderFactory;
+import io.apicurio.registry.utils.impexp.Entity;
+import io.apicurio.registry.utils.impexp.EntityReader;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.interceptor.Interceptors;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -39,60 +67,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipInputStream;
 
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import jakarta.interceptor.Interceptors;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-
-import io.apicurio.registry.rest.v2.beans.ArtifactTypeInfo;
-import org.eclipse.microprofile.config.Config;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.slf4j.Logger;
-
-import io.apicurio.common.apps.config.Dynamic;
-import io.apicurio.common.apps.config.DynamicConfigPropertyDef;
-import io.apicurio.common.apps.config.DynamicConfigPropertyDto;
-import io.apicurio.common.apps.config.DynamicConfigPropertyIndex;
-import io.apicurio.common.apps.config.Info;
-import io.apicurio.common.apps.logging.Logged;
-import io.apicurio.registry.auth.Authorized;
-import io.apicurio.registry.auth.AuthorizedLevel;
-import io.apicurio.registry.auth.AuthorizedStyle;
-import io.apicurio.registry.auth.RoleBasedAccessApiOperation;
-import io.apicurio.common.apps.logging.audit.Audited;
-import io.apicurio.registry.metrics.health.liveness.ResponseErrorLivenessCheck;
-import io.apicurio.registry.metrics.health.readiness.ResponseTimeoutReadinessCheck;
-import io.apicurio.registry.rest.MissingRequiredParameterException;
-import io.apicurio.registry.rest.v2.beans.ConfigurationProperty;
-import io.apicurio.registry.rest.v2.beans.DownloadRef;
-import io.apicurio.registry.rest.v2.beans.LogConfiguration;
-import io.apicurio.registry.rest.v2.beans.NamedLogConfiguration;
-import io.apicurio.registry.rest.v2.beans.RoleMapping;
-import io.apicurio.registry.rest.v2.beans.Rule;
-import io.apicurio.registry.rest.v2.beans.UpdateConfigurationProperty;
-import io.apicurio.registry.rest.v2.beans.UpdateRole;
-import io.apicurio.registry.rest.v2.shared.DataExporter;
-import io.apicurio.registry.rules.DefaultRuleDeletionException;
-import io.apicurio.registry.rules.RulesProperties;
-import io.apicurio.registry.services.LogConfigurationService;
-import io.apicurio.registry.storage.ConfigPropertyNotFoundException;
-import io.apicurio.registry.storage.InvalidPropertyValueException;
-import io.apicurio.registry.storage.RegistryStorage;
-import io.apicurio.registry.storage.RuleNotFoundException;
-import io.apicurio.registry.storage.dto.DownloadContextDto;
-import io.apicurio.registry.storage.dto.DownloadContextType;
-import io.apicurio.registry.storage.dto.RoleMappingDto;
-import io.apicurio.registry.storage.dto.RuleConfigurationDto;
-import io.apicurio.registry.storage.impexp.EntityInputStream;
-import io.apicurio.registry.types.Current;
-import io.apicurio.registry.types.RoleType;
-import io.apicurio.registry.types.RuleType;
-import io.apicurio.registry.types.provider.ArtifactTypeUtilProviderFactory;
-import io.apicurio.registry.utils.impexp.Entity;
-import io.apicurio.registry.utils.impexp.EntityReader;
+import static io.apicurio.common.apps.logging.audit.AuditingConstants.*;
+import static io.apicurio.registry.util.DtoUtil.appAuthPropertyToRegistry;
+import static io.apicurio.registry.util.DtoUtil.registryAuthPropertyToApp;
 
 /**
  * @author eric.wittmann@gmail.com
@@ -113,9 +90,6 @@ public class AdminResourceImpl implements AdminResource {
     RulesProperties rulesProperties;
 
     @Inject
-    LogConfigurationService logConfigService;
-
-    @Inject
     DynamicConfigPropertyIndex dynamicPropertyIndex;
 
     @Inject
@@ -134,6 +108,12 @@ public class AdminResourceImpl implements AdminResource {
     @ConfigProperty(name = "registry.download.href.ttl", defaultValue = "30")
     @Info(category = "download", description = "Download link expiry", availableSince = "2.1.2.Final")
     Supplier<Long> downloadHrefTtl;
+
+    private static final void requireParameter(String parameterName, Object parameterValue) {
+        if (parameterValue == null) {
+            throw new MissingRequiredParameterException(parameterName);
+        }
+    }
 
     /**
      * @see io.apicurio.registry.rest.v2.AdminResource#listArtifactTypes()
@@ -173,6 +153,13 @@ public class AdminResourceImpl implements AdminResource {
     @Audited(extractParameters = {"0", KEY_RULE})
     @Authorized(style=AuthorizedStyle.None, level=AuthorizedLevel.Admin)
     public void createGlobalRule(Rule data) {
+        RuleType type = data.getType();
+        requireParameter("type", type);
+
+        if (data.getConfig() == null || data.getConfig().isEmpty()) {
+            throw new MissingRequiredParameterException("Config");
+        }
+
         RuleConfigurationDto configDto = new RuleConfigurationDto();
         configDto.setConfiguration(data.getConfig());
         storage.createGlobalRule(data.getType(), configDto);
@@ -255,47 +242,6 @@ public class AdminResourceImpl implements AdminResource {
                 throw ruleNotFoundException;
             }
         }
-    }
-
-    /**
-     * @see io.apicurio.registry.rest.v2.AdminResource#getLogConfiguration(java.lang.String)
-     */
-    @Override
-    @Authorized(style=AuthorizedStyle.None, level=AuthorizedLevel.Admin)
-    public NamedLogConfiguration getLogConfiguration(String logger) {
-        return logConfigService.getLogConfiguration(logger);
-    }
-
-    /**
-     * @see io.apicurio.registry.rest.v2.AdminResource#listLogConfigurations()
-     */
-    @Override
-    @Authorized(style=AuthorizedStyle.None, level=AuthorizedLevel.Admin)
-    public List<NamedLogConfiguration> listLogConfigurations() {
-        return logConfigService.listLogConfigurations();
-    }
-
-    /**
-     * @see io.apicurio.registry.rest.v2.AdminResource#removeLogConfiguration(java.lang.String)
-     */
-    @Override
-    @Audited(extractParameters = {"0", KEY_LOGGER})
-    @Authorized(style=AuthorizedStyle.None, level=AuthorizedLevel.Admin)
-    public NamedLogConfiguration removeLogConfiguration(String logger) {
-        return logConfigService.removeLogLevelConfiguration(logger);
-    }
-
-    /**
-     * @see io.apicurio.registry.rest.v2.AdminResource#setLogConfiguration(java.lang.String, io.apicurio.registry.rest.v2.beans.LogConfiguration)
-     */
-    @Override
-    @Audited(extractParameters = {"0", KEY_LOGGER, "1", KEY_LOG_CONFIGURATION})
-    @Authorized(style=AuthorizedStyle.None, level=AuthorizedLevel.Admin)
-    public NamedLogConfiguration setLogConfiguration(String logger, LogConfiguration data) {
-        if (data.getLevel() == null) {
-            throw new MissingRequiredParameterException("logLevel");
-        }
-        return logConfigService.setLogLevel(logger, data.getLevel());
     }
 
     /**

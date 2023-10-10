@@ -18,9 +18,10 @@ package io.apicurio.registry.config;
 
 import io.apicurio.common.apps.config.DynamicConfigPropertyDto;
 import io.apicurio.common.apps.config.Info;
-import io.apicurio.common.apps.multitenancy.TenantContext;
-import io.apicurio.registry.storage.RegistryStorageException;
 import io.apicurio.registry.storage.decorator.RegistryStorageDecorator;
+import io.apicurio.registry.storage.decorator.RegistryStorageDecoratorBase;
+import io.apicurio.registry.storage.decorator.RegistryStorageDecoratorOrderConstants;
+import io.apicurio.registry.storage.error.RegistryStorageException;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -38,21 +39,18 @@ import static io.quarkus.scheduler.Scheduled.ConcurrentExecution.SKIP;
  * @author eric.wittmann@gmail.com
  */
 @ApplicationScoped
-public class RegistryStorageConfigCache extends RegistryStorageDecorator {
+public class RegistryStorageConfigCache extends RegistryStorageDecoratorBase implements RegistryStorageDecorator {
 
     private static final DynamicConfigPropertyDto NULL_DTO = new DynamicConfigPropertyDto();
 
     @Inject
     Logger log;
 
-    @Inject
-    TenantContext tenantContext;
-
     @ConfigProperty(name = "registry.config.cache.enabled", defaultValue = "true")
     @Info(category = "cache", description = "Registry cache enabled", availableSince = "2.2.2.Final")
     boolean enabled;
 
-    private Map<String, Map<String, DynamicConfigPropertyDto>> configCache = new ConcurrentHashMap<>();
+    private Map<String, DynamicConfigPropertyDto> configCache = new ConcurrentHashMap<>();
     private Instant lastRefresh = null;
 
     /**
@@ -68,8 +66,9 @@ public class RegistryStorageConfigCache extends RegistryStorageDecorator {
      */
     @Override
     public int order() {
-        return 5;
+        return RegistryStorageDecoratorOrderConstants.CONFIG_CACHE_DECORATOR;
     }
+
 
     /**
      * @see io.apicurio.registry.storage.decorator.RegistryStorageDecorator#setConfigProperty(io.apicurio.common.apps.config.DynamicConfigPropertyDto)
@@ -77,7 +76,7 @@ public class RegistryStorageConfigCache extends RegistryStorageDecorator {
     @Override
     public void setConfigProperty(DynamicConfigPropertyDto property) throws RegistryStorageException {
         super.setConfigProperty(property);
-        invalidateCache(tenantContext.tenantId());
+        invalidateCache();
     }
 
     /**
@@ -85,8 +84,7 @@ public class RegistryStorageConfigCache extends RegistryStorageDecorator {
      */
     @Override
     public DynamicConfigPropertyDto getConfigProperty(String propertyName) {
-        Map<String, DynamicConfigPropertyDto> tenantCache = getTenantCache();
-        DynamicConfigPropertyDto propertyDto = tenantCache.computeIfAbsent(propertyName, (key) -> {
+        DynamicConfigPropertyDto propertyDto = configCache.computeIfAbsent(propertyName, (key) -> {
             DynamicConfigPropertyDto dto = super.getConfigProperty(key);
             if (dto == null) {
                 dto = NULL_DTO;
@@ -96,15 +94,8 @@ public class RegistryStorageConfigCache extends RegistryStorageDecorator {
         return propertyDto == NULL_DTO ? null : propertyDto;
     }
 
-    /**
-     * Gets a tenant-specific cache.
-     */
-    private Map<String, DynamicConfigPropertyDto> getTenantCache() {
-        return configCache.computeIfAbsent(tenantContext.tenantId(), (tenantId) -> new ConcurrentHashMap<>());
-    }
-
-    private void invalidateCache(String tenantId) {
-        configCache.remove(tenantId);
+    private void invalidateCache() {
+        configCache.clear();
     }
 
     @Scheduled(concurrentExecution = SKIP, every = "{registry.config.refresh.every}")
@@ -124,8 +115,10 @@ public class RegistryStorageConfigCache extends RegistryStorageDecorator {
     private void refresh() {
         Instant now = Instant.now();
         if (lastRefresh != null) {
-            List<String> tenantIds = this.getTenantsWithStaleConfigProperties(lastRefresh);
-            tenantIds.forEach(tenantId -> invalidateCache(tenantId));
+            List<DynamicConfigPropertyDto> staleConfigProperties = this.getStaleConfigProperties(lastRefresh);
+            if (!staleConfigProperties.isEmpty()) {
+                invalidateCache();
+            }
         }
         lastRefresh = now;
     }

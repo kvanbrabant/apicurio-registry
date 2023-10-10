@@ -16,17 +16,16 @@
 
 package io.apicurio.registry.storage;
 
+import io.apicurio.registry.storage.error.InvalidArtifactStateException;
+import io.apicurio.registry.types.ArtifactState;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.slf4j.Logger;
+
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
-
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-
-import org.slf4j.Logger;
-
-import io.apicurio.registry.types.ArtifactState;
 
 /**
  * @author Ales Justin
@@ -54,7 +53,7 @@ public class ArtifactStateExt {
     }
 
     public void validateState(EnumSet<ArtifactState> states, ArtifactState state, String groupId, String artifactId, String version) {
-        if (states != null && states.contains(state) == false) {
+        if (states != null && !states.contains(state)) {
             throw new InvalidArtifactStateException(groupId, artifactId, version, state);
         }
         logIfDeprecated(groupId, artifactId, version, state);
@@ -67,14 +66,16 @@ public class ArtifactStateExt {
     }
 
     public void applyState(Consumer<ArtifactState> consumer, ArtifactState previousState, ArtifactState newState) {
-        if (previousState != null) {
-            if (canTransition(previousState, newState)) {
-                consumer.accept(newState);
+        if ( previousState != newState) {
+            if (previousState != null) {
+                if (canTransition(previousState, newState)) {
+                    consumer.accept(newState);
+                } else {
+                    throw new InvalidArtifactStateException(previousState, newState);
+                }
             } else {
-                throw new InvalidArtifactStateException(previousState, newState);
+                consumer.accept(newState);
             }
-        } else {
-            consumer.accept(newState);
         }
     }
 }

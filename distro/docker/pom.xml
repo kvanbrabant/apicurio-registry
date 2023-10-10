@@ -18,7 +18,7 @@
         <docker.sql.file>app-files/apicurio-registry-storage-sql-${project.version}-all.tar.gz</docker.sql.file>
         <docker.mssql.file>app-files/apicurio-registry-storage-mssql-${project.version}-all.tar.gz</docker.mssql.file>
         <docker.kafkasql.file>app-files/apicurio-registry-storage-kafkasql-${project.version}-all.tar.gz</docker.kafkasql.file>
-        <docker.tenant-manager.file>app-files/apicurio-registry-tenant-manager-api-${project.version}-all.tar.gz</docker.tenant-manager.file>
+        <docker.gitops.file>app-files/apicurio-registry-storage-gitops-${project.version}-all.tar.gz</docker.gitops.file>
     </properties>
 
     <dependencies>
@@ -78,7 +78,7 @@
                                     </includes>
                                 </resource>
                                 <resource>
-                                    <directory>${basedir}/../../multitenancy/tenant-manager-api/target</directory>
+                                    <directory>${basedir}/../../storage/gitops/target</directory>
                                     <filtering>false</filtering>
                                     <includes>
                                         <include>apicurio-*.tar.gz</include>
@@ -157,17 +157,16 @@
         </profile>
 
         <profile>
-            <id>multitenancy</id>
+            <id>gitops</id>
             <dependencies>
                 <dependency>
                     <groupId>io.apicurio</groupId>
-                    <artifactId>apicurio-registry-tenant-manager-api</artifactId>
+                    <artifactId>apicurio-registry-storage-gitops</artifactId>
                     <version>${project.version}</version>
                     <scope>provided</scope>
                 </dependency>
             </dependencies>
         </profile>
-
     </profiles>
 
 </project>

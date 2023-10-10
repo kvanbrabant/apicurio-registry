@@ -23,22 +23,22 @@ Located under `integration-tests`. We have a set of tests for the current versio
 
 This set of tests are mainly designed to work in two different modes:
 
-+ Apicurio Registry and required infrastructure deployed locally (processes, docker containers, mocks, ...) by the testsuite. This uses the @QuarkusIntegrationTest annotation to run the required infrastructure. This is useful for running the tests in the IDE for debugging purposes. It also
++ Apicurio Registry and required infrastructure deployed locally (processes, docker containers, mocks, ...) by the testsuite. This uses the @QuarkusIntegrationTest annotation to run the required infrastructure. This is useful for running the tests in the IDE for debugging purposes.
 + Apicurio Registry and required infrasturcture are deployed externally and connection details have to be provided in order to execute the tests.
 
 ### ITs with local infrastructure
 
-This is the normal mode used when you execute the testsuite. Because Apicurio Registry supports various storage backends and various deployment time configurations(such as multitenancy, authentication,...) this tests deploy different components depending on the test executed. This is achieved using Quarkus profiles. For example, when a multitenancy test is executed, a tenant-manager instance will be deployed.
+This is the normal mode used when you execute the testsuite. Because Apicurio Registry supports various storage backends and various deployment time configurations(such as authentication,...) this tests deploy different components depending on the test executed. This is achieved using Quarkus profiles.
 
 When running from the terminal, the configuration is provided via maven profiles. You can find all the available maven profiles [here](integration-tests/pom.xml)
 
 When executing the testsuite you normally provide two profiles:
-+ test profile (which determines the tests that will be executed), with the following options: all, ci, smoke, serdes, ui, acceptance, auth, multitenancy, migration, sqlit, kafkasqlit.
++ test profile (which determines the tests that will be executed), with the following options: all, ci, smoke, serdes, ui, acceptance, auth, migration, sqlit, kafkasqlit.
 + storage variant to test (which determines the storage backend that will be deployed, and therefore tested), the available options for running the test locally are: local-mem , local-sql, local-mssql , local-kafka.
 
 As you might expect, this testsuite mode depends on the rest of the project to be built first, in order to have the application jars/images available or the serdes module to be available as well.
 
-For running the smoke tests group using the sql variant, first run `mvn clean install -Psql` (this command will execute the unit tests for the sql variant, you can skip them using `-DskipTests`) and then run mvn verify -Plocal-sql -Psmoke. 
+For running the smoke tests group using the sql variant, first run `mvn clean install -Psql` (this command will execute the unit tests for the sql variant, you can skip them using `-DskipTests`) and then run `mvn verify -Plocal-sql -Psmoke`.
 
 
 ## ITs with infrastructure in Kubernetes/Openshift
